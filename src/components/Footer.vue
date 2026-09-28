@@ -45,7 +45,7 @@ const showFiling = computed(() => showIcp.value || showPolice.value)
             href="https://github.com/huilang-me/CF-Server-Monitor" target="_blank" rel="noopener noreferrer"
             class="transition-opacity hover:opacity-80"
           >
-            <span class="font-medium text-foreground">Kim Jong Un</span>
+            <span class="font-medium text-foreground">North Korea</span>
           </a>
         </DataTooltip>
       </div>
