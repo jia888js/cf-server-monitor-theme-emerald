@@ -4,6 +4,21 @@ import dayjs from 'dayjs'
 const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'] as const
 const LAST_BYTE_UNIT = BYTE_UNITS.at(-1)
 
+/** 字节单位显示缩写（KB→K，MB→M，GB→G，TB→T，PB→P） */
+const BYTE_UNIT_LABELS: Record<string, string> = {
+  B: 'B',
+  KB: 'K',
+  MB: 'M',
+  GB: 'G',
+  TB: 'T',
+  PB: 'P',
+}
+
+/** 取单位的显示缩写 */
+function displayByteUnit(unit: string): string {
+  return BYTE_UNIT_LABELS[unit] ?? unit
+}
+
 /** 时间单位配置（秒为单位） */
 const TIME_UNITS = [
   { value: 86400, label: '天' },
@@ -42,7 +57,7 @@ const DEFAULT_BYTE_DECIMALS: ByteDecimalsConfig = {
  * 格式化字节数为可读单位
  * @param bytes 字节数
  * @param decimals 小数位数
- * @returns 格式化后的字符串，如 "1.5 GB"
+ * @returns 格式化后的字符串，如 "1.5 G"
  */
 export function formatBytes(bytes: number, decimals = 1): string {
   if (bytes === 0)
@@ -50,7 +65,7 @@ export function formatBytes(bytes: number, decimals = 1): string {
 
   const k = 1024
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  const unit = BYTE_UNITS[i] ?? LAST_BYTE_UNIT
+  const unit = displayByteUnit(BYTE_UNITS[i] ?? LAST_BYTE_UNIT)
   return `${(bytes / k ** i).toFixed(decimals)} ${unit}`
 }
 
@@ -58,7 +73,7 @@ export function formatBytes(bytes: number, decimals = 1): string {
  * 格式化字节数为可读单位（支持自定义精度配置）
  * @param bytes 字节数
  * @param config 精度配置
- * @returns 格式化后的字符串，如 "1.5 GB"
+ * @returns 格式化后的字符串，如 "1.5 G"
  */
 export function formatBytesWithConfig(bytes: number, config?: ByteDecimalsConfig): string {
   const mergedConfig = { ...DEFAULT_BYTE_DECIMALS, ...config }
@@ -66,7 +81,7 @@ export function formatBytesWithConfig(bytes: number, config?: ByteDecimalsConfig
   if (bytes === 0) {
     // 0 字节时，检查 B 是否被禁用
     if (mergedConfig.B === -1)
-      return '0 KB'
+      return '0 K'
     return '0 B'
   }
 
@@ -84,16 +99,16 @@ export function formatBytesWithConfig(bytes: number, config?: ByteDecimalsConfig
       const nextUnitKey = BYTE_UNITS[j]
       const nextDecimals = (nextUnitKey === 'TB' || nextUnitKey === 'PB') ? mergedConfig.TB : mergedConfig[nextUnitKey as keyof ByteDecimalsConfig]
       if (nextDecimals !== -1) {
-        const unit = BYTE_UNITS[j]
+        const unit = displayByteUnit(BYTE_UNITS[j])
         return `${(bytes / k ** j).toFixed(nextDecimals)} ${unit}`
       }
     }
     // 所有单位都被禁用，使用默认行为
-    const unit = BYTE_UNITS[i] ?? LAST_BYTE_UNIT
+    const unit = displayByteUnit(BYTE_UNITS[i] ?? LAST_BYTE_UNIT)
     return `${(bytes / k ** i).toFixed(1)} ${unit}`
   }
 
-  const unit = BYTE_UNITS[i] ?? LAST_BYTE_UNIT
+  const unit = displayByteUnit(BYTE_UNITS[i] ?? LAST_BYTE_UNIT)
   return `${(bytes / k ** i).toFixed(decimals)} ${unit}`
 }
 
@@ -108,7 +123,7 @@ export function formatBytesSplit(bytes: number, config?: ByteDecimalsConfig): { 
 
   if (bytes === 0) {
     if (mergedConfig.B === -1)
-      return { value: '0', unit: 'KB' }
+      return { value: '0', unit: 'K' }
     return { value: '0', unit: 'B' }
   }
 
@@ -123,15 +138,15 @@ export function formatBytesSplit(bytes: number, config?: ByteDecimalsConfig): { 
       const nextUnitKey = BYTE_UNITS[j]
       const nextDecimals = (nextUnitKey === 'TB' || nextUnitKey === 'PB') ? mergedConfig.TB : mergedConfig[nextUnitKey as keyof ByteDecimalsConfig]
       if (nextDecimals !== -1) {
-        const unit = BYTE_UNITS[j]
+        const unit = displayByteUnit(BYTE_UNITS[j])
         return { value: (bytes / k ** j).toFixed(nextDecimals), unit: `${unit}` }
       }
     }
-    const unit = BYTE_UNITS[i] ?? LAST_BYTE_UNIT
+    const unit = displayByteUnit(BYTE_UNITS[i] ?? LAST_BYTE_UNIT)
     return { value: (bytes / k ** i).toFixed(1), unit: `${unit}` }
   }
 
-  const unit = BYTE_UNITS[i] ?? LAST_BYTE_UNIT
+  const unit = displayByteUnit(BYTE_UNITS[i] ?? LAST_BYTE_UNIT)
   return { value: (bytes / k ** i).toFixed(decimals), unit: `${unit}` }
 }
 
@@ -139,7 +154,7 @@ export function formatBytesSplit(bytes: number, config?: ByteDecimalsConfig): { 
  * 格式化字节速率为分离的数值和单位（支持自定义精度配置）
  * @param bytes 字节速率
  * @param config 精度配置
- * @returns 分离的数值和单位，如 { value: "1.5", unit: "GB/s" }
+ * @returns 分离的数值和单位，如 { value: "1.5", unit: "G/s" }
  */
 export function formatBytesPerSecondSplit(bytes: number, config?: ByteDecimalsConfig): { value: string, unit: string } {
   const result = formatBytesSplit(bytes, config)
