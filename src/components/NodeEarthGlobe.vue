@@ -404,9 +404,12 @@ function updateSignals(now: number) {
     p.head.position.copy(p.curve.getPoint(t))
     ;(p.head.material as THREE.SpriteMaterial).opacity = env
     for (let j = 0; j < p.tails.length; j++) {
+      const tail = p.tails[j]
+      if (!tail)
+        continue
       const tt = Math.max(t - (j + 1) * 0.028, 0)
-      p.tails[j].position.copy(p.curve.getPoint(tt))
-      ;(p.tails[j].material as THREE.SpriteMaterial).opacity
+      tail.position.copy(p.curve.getPoint(tt))
+      ;(tail.material as THREE.SpriteMaterial).opacity
         = env * (1 - (j + 1) / (p.tails.length + 1)) * 0.85
     }
     p.lineMat.opacity = env * 0.22
