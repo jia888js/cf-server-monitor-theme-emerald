@@ -261,8 +261,21 @@ interface ImpactFlash {
   glow: THREE.Sprite
 }
 
-const MAX_PACKETS = 8
+const MAX_PACKETS = 10
 const FLASH_DURATION = 650
+// 攻击弧线配色：源头青蓝 → 绿 → 黄 → 橙 → 落点血红（视频里的彩虹渐变）
+const ARC_STOPS = [0x35E0FF, 0x52FF9A, 0xFFE14D, 0xFF8A3C, 0xFF2A1A].map(h => new THREE.Color(h))
+function arcColorAt(u: number, out: THREE.Color): THREE.Color {
+  const n = ARC_STOPS.length - 1
+  const x = Math.min(Math.max(u, 0), 1) * n
+  const i = Math.min(Math.floor(x), n - 1)
+  const f = x - i
+  const a = ARC_STOPS[i]
+  const b = ARC_STOPS[i + 1]
+  if (a && b)
+    out.copy(a).lerp(b, f)
+  return out
+}
 let glowTex: THREE.CanvasTexture | null = null
 let signalPackets: SignalPacket[] = []
 let impactFlashes: ImpactFlash[] = []
@@ -337,15 +350,13 @@ function spawnSignal() {
 
   // 弹头：小而亮，白热
   const head = makeGlowSprite(0xFFF6E0, 0.045)
-  // 弧线：1px 细线，源头橙黄 → 落点血红（攻击示意视频配色）
+  // 弧线：1px 细线，源头青蓝 → 落点血红的彩虹渐变（攻击示意视频配色）
   const arcPts = curve.getPoints(48)
   const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPts)
   const arcColors = new Float32Array(arcPts.length * 3)
-  const cSrc = new THREE.Color(0xFFC14D)
-  const cDst = new THREE.Color(0xFF2A1A)
   const cTmp = new THREE.Color()
   for (let i = 0; i < arcPts.length; i++) {
-    cTmp.copy(cSrc).lerp(cDst, i / (arcPts.length - 1))
+    arcColorAt(i / (arcPts.length - 1), cTmp)
     arcColors[i * 3] = cTmp.r
     arcColors[i * 3 + 1] = cTmp.g
     arcColors[i * 3 + 2] = cTmp.b
@@ -445,7 +456,7 @@ function updateSignals(now: number) {
   // 随机发射：无固定顺序、无固定间隔
   if (now >= nextSignalAt && signalPackets.length < MAX_PACKETS) {
     spawnSignal()
-    nextSignalAt = now + 350 + Math.random() * 1500
+    nextSignalAt = now + 250 + Math.random() * 950
   }
 
   for (let i = signalPackets.length - 1; i >= 0; i--) {
