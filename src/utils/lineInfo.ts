@@ -13,7 +13,7 @@ export function loadLineInfo(): Promise<void> {
     return loading
   loading = (async () => {
     try {
-      const r = await fetch('https://linereport.error404.cyou/lines')
+      const r = await fetch('/lines')
       const j = await r.json()
       if (j && j.ok && j.lines && typeof j.lines === 'object')
         lineMap.value = j.lines
