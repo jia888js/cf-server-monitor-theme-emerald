@@ -15,8 +15,8 @@ const BYTE_UNIT_LABELS: Record<string, string> = {
 }
 
 /** 取单位的显示缩写 */
-function displayByteUnit(unit: string): string {
-  return BYTE_UNIT_LABELS[unit] ?? unit
+function displayByteUnit(unit: string | undefined): string {
+  return (unit && BYTE_UNIT_LABELS[unit]) || unit || ''
 }
 
 /** 时间单位配置（秒为单位） */
