@@ -138,13 +138,6 @@ const regionRates = computed<Map<string, RegionRate>>(() => {
   return map
 })
 
-const arcsEnabled = computed(() => appStore.visitorInfoCardEnabled && appStore.visitorCountryCode != null)
-const userCoord = computed<[number, number] | null>(() => {
-  if (!appStore.visitorInfoCardEnabled)
-    return null
-  return getCoordByCode(appStore.visitorCountryCode)
-})
-
 const clusterOverlayEls = new Map<string, HTMLDivElement>()
 const clusterOverlayRefBinders = new Map<string, (el: Element | ComponentPublicInstance | null) => void>()
 
@@ -237,7 +230,7 @@ function disposeGroup(group: THREE.Group) {
 function rebuildSceneObjects() {
   if (!spinGroup || !arcsGroup || !anchorsGroup)
     return
-  disposeGroup(arcsGroup)
+  clearSignals()
   disposeGroup(anchorsGroup)
   markerAnchors.clear()
 
@@ -247,29 +240,178 @@ function rebuildSceneObjects() {
     anchorsGroup.add(anchor)
     markerAnchors.set(cluster.code, anchor)
   }
+}
 
-  const user = userCoord.value
-  if (arcsEnabled.value && user) {
-    const to = latLonToVec3(user[0], user[1], 1.016)
-    for (const cluster of regionClusters.value) {
-      const from = latLonToVec3(cluster.coord[0], cluster.coord[1], 1.016)
-      const dist = from.distanceTo(to)
-      if (dist < 0.05)
-        continue
-      // 弧顶至少高出地表，保证弧线浮在球面上方不扎进地球
-      const lift = 1.016 + 0.07 + dist * 0.32
-      const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(lift)
-      const curve = new THREE.QuadraticBezierCurve3(from, mid, to)
-      const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(48))
-      const mat = new THREE.LineBasicMaterial({
-        color: 0x8FD8FF,
-        transparent: true,
-        opacity: 0.8,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      })
-      arcsGroup.add(new THREE.Line(geo, mat))
+// ---- 信号流星：节点之间随机互发，无固定顺序、无固定间隔 ----
+interface SignalPacket {
+  curve: THREE.QuadraticBezierCurve3
+  elapsed: number
+  duration: number
+  head: THREE.Sprite
+  tails: THREE.Sprite[]
+  line: THREE.Line
+  lineMat: THREE.LineBasicMaterial
+}
+
+const TAIL_COUNT = 7
+const MAX_PACKETS = 8
+let glowTex: THREE.CanvasTexture | null = null
+let signalPackets: SignalPacket[] = []
+let nextSignalAt = 0
+let lastSignalFrameTime = 0
+
+function smooth01(x: number) {
+  const t = Math.min(Math.max(x, 0), 1)
+  return t * t * (3 - 2 * t)
+}
+
+function buildGlowTexture(): THREE.CanvasTexture {
+  const size = 64
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
+    grad.addColorStop(0, 'rgba(255,255,255,1)')
+    grad.addColorStop(0.25, 'rgba(255,255,255,0.8)')
+    grad.addColorStop(0.6, 'rgba(255,255,255,0.18)')
+    grad.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, size, size)
+  }
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
+function makeGlowSprite(color: number, size: number): THREE.Sprite {
+  const mat = new THREE.SpriteMaterial({
+    map: glowTex,
+    color,
+    transparent: true,
+    opacity: 0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+  const sprite = new THREE.Sprite(mat)
+  sprite.scale.set(size, size, 1)
+  return sprite
+}
+
+function spawnSignal() {
+  const group = arcsGroup
+  if (!group || !glowTex)
+    return
+  const clusters = regionClusters.value
+  if (clusters.length < 2)
+    return
+  // 随机挑两台不同的机器
+  const a = clusters[(Math.random() * clusters.length) | 0]
+  let b = clusters[(Math.random() * clusters.length) | 0]
+  if (!a || !b)
+    return
+  if (b === a) {
+    const next = clusters[(clusters.indexOf(a) + 1) % clusters.length]
+    if (!next)
+      return
+    b = next
+  }
+  const from = latLonToVec3(a.coord[0], a.coord[1], 1.016)
+  const to = latLonToVec3(b.coord[0], b.coord[1], 1.016)
+  const dist = from.distanceTo(to)
+  if (dist < 0.05)
+    return
+  const lift = 1.016 + 0.07 + dist * 0.32
+  const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(lift)
+  const curve = new THREE.QuadraticBezierCurve3(from, mid, to)
+
+  const head = makeGlowSprite(0xEAF7FF, 0.075)
+  const tails: THREE.Sprite[] = []
+  for (let i = 0; i < TAIL_COUNT; i++)
+    tails.push(makeGlowSprite(0x6FC4FF, 0.055 - i * 0.006))
+
+  const lineMat = new THREE.LineBasicMaterial({
+    color: 0x8FD8FF,
+    transparent: true,
+    opacity: 0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(48)), lineMat)
+
+  group.add(line)
+  group.add(head)
+  for (const s of tails) group.add(s)
+  signalPackets.push({
+    curve,
+    elapsed: 0,
+    duration: 1400 + dist * 1600,
+    head,
+    tails,
+    line,
+    lineMat,
+  })
+}
+
+function removeSignalPacket(group: THREE.Group, index: number) {
+  const p = signalPackets[index]
+  if (!p)
+    return
+  group.remove(p.line)
+  group.remove(p.head)
+  for (const s of p.tails) group.remove(s)
+  p.line.geometry.dispose()
+  p.lineMat.dispose()
+  ;(p.head.material as THREE.Material).dispose()
+  for (const s of p.tails) (s.material as THREE.Material).dispose()
+  signalPackets.splice(index, 1)
+}
+
+function clearSignals() {
+  const group = arcsGroup
+  if (group) {
+    for (let i = signalPackets.length - 1; i >= 0; i--)
+      removeSignalPacket(group, i)
+  }
+  else {
+    signalPackets = []
+  }
+  nextSignalAt = 0
+}
+
+function updateSignals(now: number) {
+  const group = arcsGroup
+  if (!group)
+    return
+  const dt = lastSignalFrameTime > 0 ? Math.min(now - lastSignalFrameTime, 50) : 16
+  lastSignalFrameTime = now
+
+  // 随机发射：无固定顺序、无固定间隔
+  if (now >= nextSignalAt && signalPackets.length < MAX_PACKETS) {
+    spawnSignal()
+    nextSignalAt = now + 350 + Math.random() * 1500
+  }
+
+  for (let i = signalPackets.length - 1; i >= 0; i--) {
+    const p = signalPackets[i]
+    if (!p)
+      continue
+    p.elapsed += dt
+    const t = Math.min(p.elapsed / p.duration, 1)
+    // 淡入淡出包络：像信号发射出去又落下
+    const env = smooth01(t / 0.15) * (1 - smooth01((t - 0.7) / 0.3))
+    p.head.position.copy(p.curve.getPoint(t))
+    ;(p.head.material as THREE.SpriteMaterial).opacity = env
+    for (let j = 0; j < p.tails.length; j++) {
+      const tt = Math.max(t - (j + 1) * 0.028, 0)
+      p.tails[j].position.copy(p.curve.getPoint(tt))
+      ;(p.tails[j].material as THREE.SpriteMaterial).opacity
+        = env * (1 - (j + 1) / (p.tails.length + 1)) * 0.85
     }
+    p.lineMat.opacity = env * 0.22
+    if (t >= 1)
+      removeSignalPacket(group, i)
   }
 }
 
@@ -335,6 +477,9 @@ function startGlobe() {
 
   scene.add(buildStars(1300, 16, 40))
 
+  glowTex = buildGlowTexture()
+  lastSignalFrameTime = 0
+  nextSignalAt = 0
   rebuildSceneObjects()
   resizeGlobe()
   syncRafState()
@@ -349,6 +494,8 @@ const { pause: pauseRaf, resume: resumeRaf } = useRafFn(
     // 云层相对地表缓慢漂移
     if (cloudsMesh && !isPointerDown)
       cloudsMesh.rotation.y += 0.00012
+    // 信号流星：节点之间随机互发
+    updateSignals(performance.now())
     renderer.render(scene, camera)
     syncClusterOverlayPositions()
   },
@@ -357,6 +504,9 @@ const { pause: pauseRaf, resume: resumeRaf } = useRafFn(
 
 function stopGlobe() {
   pauseRaf()
+  clearSignals()
+  glowTex?.dispose()
+  glowTex = null
   if (scene) {
     scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh
@@ -508,7 +658,7 @@ watch(
 )
 
 watch(
-  [() => regionClusters.value.map(clusterKey).join(','), userCoord],
+  [() => regionClusters.value.map(clusterKey).join(',')],
   async () => {
     if (!spinGroup)
       return
