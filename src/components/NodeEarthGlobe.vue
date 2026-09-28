@@ -10,6 +10,7 @@ import {
 } from '@vueuse/core'
 import * as THREE from 'three'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import cloudsTextureUrl from '@/assets/clouds.png'
 import earthTextureUrl from '@/assets/earth.jpg'
 import { useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
@@ -46,6 +47,7 @@ let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
 let tiltGroup: THREE.Group | null = null
 let spinGroup: THREE.Group | null = null
+let cloudsMesh: THREE.Mesh | null = null
 let arcsGroup: THREE.Group | null = null
 let anchorsGroup: THREE.Group | null = null
 let isPointerDown = false
@@ -303,16 +305,31 @@ function startGlobe() {
   spinGroup.add(earth)
   spinGroup.add(buildAtmosphere())
 
+  // 云层：独立缓慢漂移，更有真实感
+  const cloudsTex = new THREE.TextureLoader().load(cloudsTextureUrl)
+  cloudsTex.colorSpace = THREE.SRGBColorSpace
+  cloudsTex.anisotropy = 4
+  cloudsMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(1.008, 48, 48),
+    new THREE.MeshLambertMaterial({
+      map: cloudsTex,
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false,
+    }),
+  )
+  spinGroup.add(cloudsMesh)
+
   arcsGroup = new THREE.Group()
   anchorsGroup = new THREE.Group()
   spinGroup.add(arcsGroup)
   spinGroup.add(anchorsGroup)
 
   // 太阳光 + 环境光：白天面明亮，夜晚面不至于死黑
-  const sun = new THREE.DirectionalLight(0xFFFFFF, 2.4)
+  const sun = new THREE.DirectionalLight(0xFFF4E2, 2.6)
   sun.position.set(-4, 2.5, 4)
   scene.add(sun)
-  scene.add(new THREE.AmbientLight(0x93A7C8, 0.65))
+  scene.add(new THREE.AmbientLight(0x93A7C8, 0.5))
 
   scene.add(buildStars(1300, 16, 40))
 
@@ -327,6 +344,9 @@ const { pause: pauseRaf, resume: resumeRaf } = useRafFn(
       return
     if (!isPointerDown && shouldAutoRotate.value)
       spinGroup.rotation.y += AUTO_ROTATE_SPEED
+    // 云层相对地表缓慢漂移
+    if (cloudsMesh && !isPointerDown)
+      cloudsMesh.rotation.y += 0.00012
     renderer.render(scene, camera)
     syncClusterOverlayPositions()
   },
@@ -357,6 +377,7 @@ function stopGlobe() {
   camera = null
   tiltGroup = null
   spinGroup = null
+  cloudsMesh = null
   arcsGroup = null
   anchorsGroup = null
   markerAnchors.clear()
