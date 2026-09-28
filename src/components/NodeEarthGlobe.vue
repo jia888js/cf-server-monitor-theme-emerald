@@ -243,22 +243,35 @@ function rebuildSceneObjects() {
 }
 
 // ---- 信号流星：节点之间随机互发，无固定顺序、无固定间隔 ----
+// 造型：发光头部 + 一条连续的蝌蚪拖尾（头宽尾窄、头亮尾暗）
 interface SignalPacket {
   curve: THREE.QuadraticBezierCurve3
+  curveLen: number
   elapsed: number
   duration: number
   head: THREE.Sprite
-  tails: THREE.Sprite[]
-  line: THREE.Line
-  lineMat: THREE.LineBasicMaterial
+  ribbon: THREE.Mesh
+  ribbonGeo: THREE.BufferGeometry
+  posAttr: THREE.BufferAttribute
+  colAttr: THREE.BufferAttribute
 }
 
-const TAIL_COUNT = 7
+const RIBBON_SEGMENTS = 18
+const TAIL_WORLD_LEN = 0.3
+const RIBBON_MAX_WIDTH = 0.02
 const MAX_PACKETS = 8
 let glowTex: THREE.CanvasTexture | null = null
 let signalPackets: SignalPacket[] = []
 let nextSignalAt = 0
 let lastSignalFrameTime = 0
+
+// 复用临时向量，避免每帧分配
+const _sv1 = new THREE.Vector3()
+const _sv2 = new THREE.Vector3()
+const _svTan = new THREE.Vector3()
+const _svView = new THREE.Vector3()
+const _svSide = new THREE.Vector3()
+const _svQ = new THREE.Quaternion()
 
 function smooth01(x: number) {
   const t = Math.min(Math.max(x, 0), 1)
@@ -299,6 +312,24 @@ function makeGlowSprite(color: number, size: number): THREE.Sprite {
   return sprite
 }
 
+function buildRibbonGeometry(): { geo: THREE.BufferGeometry, posAttr: THREE.BufferAttribute, colAttr: THREE.BufferAttribute } {
+  const count = (RIBBON_SEGMENTS + 1) * 2
+  const geo = new THREE.BufferGeometry()
+  const posAttr = new THREE.BufferAttribute(new Float32Array(count * 3), 3)
+  const colAttr = new THREE.BufferAttribute(new Float32Array(count * 3), 3)
+  posAttr.setUsage(THREE.DynamicDrawUsage)
+  colAttr.setUsage(THREE.DynamicDrawUsage)
+  const index: number[] = []
+  for (let i = 0; i < RIBBON_SEGMENTS; i++) {
+    const a = i * 2
+    index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+  }
+  geo.setIndex(index)
+  geo.setAttribute('position', posAttr)
+  geo.setAttribute('color', colAttr)
+  return { geo, posAttr, colAttr }
+}
+
 function spawnSignal() {
   const group = arcsGroup
   if (!group || !glowTex)
@@ -326,31 +357,30 @@ function spawnSignal() {
   const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(lift)
   const curve = new THREE.QuadraticBezierCurve3(from, mid, to)
 
-  const head = makeGlowSprite(0xEAF7FF, 0.075)
-  const tails: THREE.Sprite[] = []
-  for (let i = 0; i < TAIL_COUNT; i++)
-    tails.push(makeGlowSprite(0x6FC4FF, 0.055 - i * 0.006))
-
-  const lineMat = new THREE.LineBasicMaterial({
-    color: 0x8FD8FF,
+  const head = makeGlowSprite(0xEAF7FF, 0.06)
+  const { geo, posAttr, colAttr } = buildRibbonGeometry()
+  const ribbonMat = new THREE.MeshBasicMaterial({
+    vertexColors: true,
     transparent: true,
-    opacity: 0,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
+    side: THREE.DoubleSide,
   })
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(48)), lineMat)
+  const ribbon = new THREE.Mesh(geo, ribbonMat)
+  ribbon.frustumCulled = false
 
-  group.add(line)
   group.add(head)
-  for (const s of tails) group.add(s)
+  group.add(ribbon)
   signalPackets.push({
     curve,
+    curveLen: Math.max(curve.getLength(), 0.001),
     elapsed: 0,
-    duration: 1400 + dist * 1600,
+    duration: 600 + dist * 800,
     head,
-    tails,
-    line,
-    lineMat,
+    ribbon,
+    ribbonGeo: geo,
+    posAttr,
+    colAttr,
   })
 }
 
@@ -358,13 +388,11 @@ function removeSignalPacket(group: THREE.Group, index: number) {
   const p = signalPackets[index]
   if (!p)
     return
-  group.remove(p.line)
   group.remove(p.head)
-  for (const s of p.tails) group.remove(s)
-  p.line.geometry.dispose()
-  p.lineMat.dispose()
+  group.remove(p.ribbon)
+  p.ribbonGeo.dispose()
+  ;(p.ribbon.material as THREE.Material).dispose()
   ;(p.head.material as THREE.Material).dispose()
-  for (const s of p.tails) (s.material as THREE.Material).dispose()
   signalPackets.splice(index, 1)
 }
 
@@ -380,9 +408,59 @@ function clearSignals() {
   nextSignalAt = 0
 }
 
+// 更新蝌蚪拖尾：面向相机的飘带，宽度头宽尾窄、亮度头亮尾暗
+function updateRibbon(p: SignalPacket, t: number, env: number, spin: THREE.Group, cam: THREE.PerspectiveCamera) {
+  spin.getWorldQuaternion(_svQ).invert()
+  const pos = p.posAttr.array as Float32Array
+  const col = p.colAttr.array as Float32Array
+  for (let i = 0; i <= RIBBON_SEGMENTS; i++) {
+    const frac = i / RIBBON_SEGMENTS
+    const back = frac * TAIL_WORLD_LEN
+    const tt = Math.max(t - back / p.curveLen, 0)
+    const pt = p.curve.getPoint(tt)
+    const ptAhead = p.curve.getPoint(Math.min(tt + 0.004, 1))
+    // 切向与朝向（世界空间），再转回 spinGroup 本地空间
+    _sv1.copy(pt).applyMatrix4(spin.matrixWorld)
+    _sv2.copy(ptAhead).applyMatrix4(spin.matrixWorld)
+    _svTan.copy(_sv2).sub(_sv1)
+    if (_svTan.lengthSq() < 1e-10)
+      _svTan.set(0, 1, 0)
+    _svTan.normalize()
+    _svView.copy(cam.position).sub(_sv1).normalize()
+    _svSide.crossVectors(_svTan, _svView)
+    if (_svSide.lengthSq() < 1e-10)
+      _svSide.set(1, 0, 0)
+    _svSide.normalize().applyQuaternion(_svQ)
+
+    const w = RIBBON_MAX_WIDTH * (1 - frac) ** 1.6
+    const b = (1 - frac) ** 1.8 * env
+    const o = i * 6
+    pos[o] = pt.x + _svSide.x * w
+    pos[o + 1] = pt.y + _svSide.y * w
+    pos[o + 2] = pt.z + _svSide.z * w
+    pos[o + 3] = pt.x - _svSide.x * w
+    pos[o + 4] = pt.y - _svSide.y * w
+    pos[o + 5] = pt.z - _svSide.z * w
+    // 加色混合：颜色越暗越透明，头亮尾暗
+    const r = 0.62 * b
+    const g = 0.86 * b
+    const bl = 1.0 * b
+    col[o] = r
+    col[o + 1] = g
+    col[o + 2] = bl
+    col[o + 3] = r
+    col[o + 4] = g
+    col[o + 5] = bl
+  }
+  p.posAttr.needsUpdate = true
+  p.colAttr.needsUpdate = true
+}
+
 function updateSignals(now: number) {
   const group = arcsGroup
-  if (!group)
+  const spin = spinGroup
+  const cam = camera
+  if (!group || !spin || !cam)
     return
   const dt = lastSignalFrameTime > 0 ? Math.min(now - lastSignalFrameTime, 50) : 16
   lastSignalFrameTime = now
@@ -400,19 +478,10 @@ function updateSignals(now: number) {
     p.elapsed += dt
     const t = Math.min(p.elapsed / p.duration, 1)
     // 淡入淡出包络：像信号发射出去又落下
-    const env = smooth01(t / 0.15) * (1 - smooth01((t - 0.7) / 0.3))
+    const env = smooth01(t / 0.12) * (1 - smooth01((t - 0.72) / 0.28))
     p.head.position.copy(p.curve.getPoint(t))
     ;(p.head.material as THREE.SpriteMaterial).opacity = env
-    for (let j = 0; j < p.tails.length; j++) {
-      const tail = p.tails[j]
-      if (!tail)
-        continue
-      const tt = Math.max(t - (j + 1) * 0.028, 0)
-      tail.position.copy(p.curve.getPoint(tt))
-      ;(tail.material as THREE.SpriteMaterial).opacity
-        = env * (1 - (j + 1) / (p.tails.length + 1)) * 0.85
-    }
-    p.lineMat.opacity = env * 0.22
+    updateRibbon(p, t, env, spin, cam)
     if (t >= 1)
       removeSignalPacket(group, i)
   }
