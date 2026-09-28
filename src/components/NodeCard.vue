@@ -180,8 +180,8 @@ function openPingDialog() {
               <span class="text-muted-foreground whitespace-nowrap shrink-0">
                 流量
               </span>
-              <span v-if="isGuest">{{ formatBytes(trafficUsed) }} / {{ showTrafficProgress(props.node) ? formatBytes(props.node.traffic_limit) : '∞' }}</span>
-              <span v-else>{{ trafficUsedPercentage.toFixed(1) }}%</span>
+              <span v-if="isGuest" class="whitespace-nowrap">{{ formatBytes(trafficUsed) }} / {{ showTrafficProgress(props.node) ? formatBytes(props.node.traffic_limit) : '∞' }}</span>
+              <span v-else class="whitespace-nowrap">{{ trafficUsedPercentage.toFixed(1) }}%</span>
             </div>
             <ProgressThin :percentage="trafficUsedPercentage" :status="trafficStatus" :height="4" />
             <DataTooltip v-if="!isGuest" placement="top" class="block">
