@@ -126,7 +126,7 @@ function openPingDialog() {
           <!-- CPU -->
           <div class="flex flex-col gap-1">
             <div class="w-full text-xs flex flex-row justify-between">
-              <span class="text-muted-foreground">
+              <span class="text-muted-foreground whitespace-nowrap shrink-0">
                 CPU
               </span>
               <span>{{ (props.node.cpu ?? 0).toFixed(1) }}%</span>
@@ -141,7 +141,7 @@ function openPingDialog() {
           <!-- 内存 -->
           <div class="flex flex-col gap-1">
             <div class="w-full text-xs flex flex-row justify-between">
-              <span class="text-muted-foreground">
+              <span class="text-muted-foreground whitespace-nowrap shrink-0">
                 内存
               </span>
               <span>{{ memPercentage.toFixed(1) }}%</span>
@@ -163,7 +163,7 @@ function openPingDialog() {
           <!-- 硬盘 -->
           <div class="flex flex-col gap-1">
             <div class="w-full text-xs flex flex-row justify-between">
-              <span class="text-muted-foreground">
+              <span class="text-muted-foreground whitespace-nowrap shrink-0">
                 硬盘
               </span>
               <span>{{ diskPercentage.toFixed(1) }}%</span>
@@ -177,7 +177,7 @@ function openPingDialog() {
           <!-- 流量进度条 -->
           <div class="flex flex-col gap-1">
             <div class="w-full text-xs flex flex-row justify-between">
-              <span class="text-muted-foreground">
+              <span class="text-muted-foreground whitespace-nowrap shrink-0">
                 流量
               </span>
               <span v-if="isGuest">{{ formatBytes(trafficUsed) }} / {{ showTrafficProgress(props.node) ? formatBytes(props.node.traffic_limit) : '∞' }}</span>
@@ -316,7 +316,7 @@ function openPingDialog() {
                   @keydown.space.stop.prevent="openPingDialog"
                 >
                   <div class="flex items-center justify-between text-[11px] leading-none relative">
-                    <span class="text-muted-foreground">延迟</span>
+                    <span class="text-muted-foreground whitespace-nowrap shrink-0">延迟</span>
                     <div class="border-t-2 border-dotted border-gray-500/10 mx-2 flex-1" />
                     <span class="font-medium text-foreground/85">{{ latencyDisplay }}</span>
                   </div>
@@ -345,7 +345,7 @@ function openPingDialog() {
                   @keydown.space.stop.prevent="openPingDialog"
                 >
                   <div class="flex items-center justify-between text-[11px] leading-none relative">
-                    <span class="text-muted-foreground">丢包</span>
+                    <span class="text-muted-foreground whitespace-nowrap shrink-0">丢包</span>
                     <div class="border-t-2 border-dotted border-gray-500/10 mx-2 flex-1" />
                     <span class="font-medium text-foreground/85">{{ lossDisplay }}</span>
                   </div>
