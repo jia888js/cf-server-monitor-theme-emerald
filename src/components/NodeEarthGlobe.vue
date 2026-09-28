@@ -243,35 +243,31 @@ function rebuildSceneObjects() {
 }
 
 // ---- 信号流星：节点之间随机互发，无固定顺序、无固定间隔 ----
-// 造型：发光头部 + 一条连续的蝌蚪拖尾（头宽尾窄、头亮尾暗）
+// 风格对标网络攻击示意视频：细激光弧线 + 明亮弹头 + 落点冲击波
 interface SignalPacket {
   curve: THREE.QuadraticBezierCurve3
-  curveLen: number
   elapsed: number
   duration: number
   head: THREE.Sprite
-  ribbon: THREE.Mesh
-  ribbonGeo: THREE.BufferGeometry
-  posAttr: THREE.BufferAttribute
-  colAttr: THREE.BufferAttribute
+  arc: THREE.Line
+  arcMat: THREE.LineBasicMaterial
 }
 
-const RIBBON_SEGMENTS = 18
-const TAIL_WORLD_LEN = 0.3
-const RIBBON_MAX_WIDTH = 0.02
+interface ImpactFlash {
+  elapsed: number
+  duration: number
+  ring: THREE.Mesh
+  ringMat: THREE.MeshBasicMaterial
+  glow: THREE.Sprite
+}
+
 const MAX_PACKETS = 8
+const FLASH_DURATION = 650
 let glowTex: THREE.CanvasTexture | null = null
 let signalPackets: SignalPacket[] = []
+let impactFlashes: ImpactFlash[] = []
 let nextSignalAt = 0
 let lastSignalFrameTime = 0
-
-// 复用临时向量，避免每帧分配
-const _sv1 = new THREE.Vector3()
-const _sv2 = new THREE.Vector3()
-const _svTan = new THREE.Vector3()
-const _svView = new THREE.Vector3()
-const _svSide = new THREE.Vector3()
-const _svQ = new THREE.Quaternion()
 
 function smooth01(x: number) {
   const t = Math.min(Math.max(x, 0), 1)
@@ -312,24 +308,6 @@ function makeGlowSprite(color: number, size: number): THREE.Sprite {
   return sprite
 }
 
-function buildRibbonGeometry(): { geo: THREE.BufferGeometry, posAttr: THREE.BufferAttribute, colAttr: THREE.BufferAttribute } {
-  const count = (RIBBON_SEGMENTS + 1) * 2
-  const geo = new THREE.BufferGeometry()
-  const posAttr = new THREE.BufferAttribute(new Float32Array(count * 3), 3)
-  const colAttr = new THREE.BufferAttribute(new Float32Array(count * 3), 3)
-  posAttr.setUsage(THREE.DynamicDrawUsage)
-  colAttr.setUsage(THREE.DynamicDrawUsage)
-  const index: number[] = []
-  for (let i = 0; i < RIBBON_SEGMENTS; i++) {
-    const a = i * 2
-    index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
-  }
-  geo.setIndex(index)
-  geo.setAttribute('position', posAttr)
-  geo.setAttribute('color', colAttr)
-  return { geo, posAttr, colAttr }
-}
-
 function spawnSignal() {
   const group = arcsGroup
   if (!group || !glowTex)
@@ -357,43 +335,76 @@ function spawnSignal() {
   const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(lift)
   const curve = new THREE.QuadraticBezierCurve3(from, mid, to)
 
-  const head = makeGlowSprite(0xEAF7FF, 0.06)
-  const { geo, posAttr, colAttr } = buildRibbonGeometry()
-  const ribbonMat = new THREE.MeshBasicMaterial({
-    vertexColors: true,
+  // 弹头：小而亮
+  const head = makeGlowSprite(0xFFFFFF, 0.045)
+  // 弧线：1px 细激光线，飞行中淡入淡出
+  const arcMat = new THREE.LineBasicMaterial({
+    color: 0x7FD4FF,
     transparent: true,
+    opacity: 0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+  const arc = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(48)), arcMat)
+
+  group.add(head)
+  group.add(arc)
+  signalPackets.push({
+    curve,
+    elapsed: 0,
+    duration: 600 + dist * 800,
+    head,
+    arc,
+    arcMat,
+  })
+}
+
+// 落点冲击波：扩散的光环 + 一闪而过的强光
+function spawnFlash(group: THREE.Group, target: THREE.Vector3) {
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0xBFE9FF,
+    transparent: true,
+    opacity: 0.9,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     side: THREE.DoubleSide,
   })
-  const ribbon = new THREE.Mesh(geo, ribbonMat)
-  ribbon.frustumCulled = false
-
-  group.add(head)
-  group.add(ribbon)
-  signalPackets.push({
-    curve,
-    curveLen: Math.max(curve.getLength(), 0.001),
-    elapsed: 0,
-    duration: 600 + dist * 800,
-    head,
-    ribbon,
-    ribbonGeo: geo,
-    posAttr,
-    colAttr,
-  })
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40), ringMat)
+  ring.position.copy(target)
+  ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), target.clone().normalize())
+  ring.scale.setScalar(0.02)
+  const glow = makeGlowSprite(0xEAF7FF, 0.1)
+  glow.position.copy(target)
+  ;(glow.material as THREE.SpriteMaterial).opacity = 0.9
+  group.add(ring)
+  group.add(glow)
+  impactFlashes.push({ elapsed: 0, duration: FLASH_DURATION, ring, ringMat, glow })
 }
 
 function removeSignalPacket(group: THREE.Group, index: number) {
   const p = signalPackets[index]
   if (!p)
     return
+  // 命中瞬间在落点炸开冲击波
+  spawnFlash(group, p.curve.getPoint(1))
   group.remove(p.head)
-  group.remove(p.ribbon)
-  p.ribbonGeo.dispose()
-  ;(p.ribbon.material as THREE.Material).dispose()
+  group.remove(p.arc)
+  p.arc.geometry.dispose()
+  p.arcMat.dispose()
   ;(p.head.material as THREE.Material).dispose()
   signalPackets.splice(index, 1)
+}
+
+function removeFlash(group: THREE.Group, index: number) {
+  const f = impactFlashes[index]
+  if (!f)
+    return
+  group.remove(f.ring)
+  group.remove(f.glow)
+  f.ring.geometry.dispose()
+  f.ringMat.dispose()
+  ;(f.glow.material as THREE.Material).dispose()
+  impactFlashes.splice(index, 1)
 }
 
 function clearSignals() {
@@ -401,66 +412,19 @@ function clearSignals() {
   if (group) {
     for (let i = signalPackets.length - 1; i >= 0; i--)
       removeSignalPacket(group, i)
+    for (let i = impactFlashes.length - 1; i >= 0; i--)
+      removeFlash(group, i)
   }
   else {
     signalPackets = []
+    impactFlashes = []
   }
   nextSignalAt = 0
 }
 
-// 更新蝌蚪拖尾：面向相机的飘带，宽度头宽尾窄、亮度头亮尾暗
-function updateRibbon(p: SignalPacket, t: number, env: number, spin: THREE.Group, cam: THREE.PerspectiveCamera) {
-  spin.getWorldQuaternion(_svQ).invert()
-  const pos = p.posAttr.array as Float32Array
-  const col = p.colAttr.array as Float32Array
-  for (let i = 0; i <= RIBBON_SEGMENTS; i++) {
-    const frac = i / RIBBON_SEGMENTS
-    const back = frac * TAIL_WORLD_LEN
-    const tt = Math.max(t - back / p.curveLen, 0)
-    const pt = p.curve.getPoint(tt)
-    const ptAhead = p.curve.getPoint(Math.min(tt + 0.004, 1))
-    // 切向与朝向（世界空间），再转回 spinGroup 本地空间
-    _sv1.copy(pt).applyMatrix4(spin.matrixWorld)
-    _sv2.copy(ptAhead).applyMatrix4(spin.matrixWorld)
-    _svTan.copy(_sv2).sub(_sv1)
-    if (_svTan.lengthSq() < 1e-10)
-      _svTan.set(0, 1, 0)
-    _svTan.normalize()
-    _svView.copy(cam.position).sub(_sv1).normalize()
-    _svSide.crossVectors(_svTan, _svView)
-    if (_svSide.lengthSq() < 1e-10)
-      _svSide.set(1, 0, 0)
-    _svSide.normalize().applyQuaternion(_svQ)
-
-    const w = RIBBON_MAX_WIDTH * (1 - frac) ** 1.6
-    const b = (1 - frac) ** 1.8 * env
-    const o = i * 6
-    pos[o] = pt.x + _svSide.x * w
-    pos[o + 1] = pt.y + _svSide.y * w
-    pos[o + 2] = pt.z + _svSide.z * w
-    pos[o + 3] = pt.x - _svSide.x * w
-    pos[o + 4] = pt.y - _svSide.y * w
-    pos[o + 5] = pt.z - _svSide.z * w
-    // 加色混合：颜色越暗越透明，头亮尾暗
-    const r = 0.62 * b
-    const g = 0.86 * b
-    const bl = 1.0 * b
-    col[o] = r
-    col[o + 1] = g
-    col[o + 2] = bl
-    col[o + 3] = r
-    col[o + 4] = g
-    col[o + 5] = bl
-  }
-  p.posAttr.needsUpdate = true
-  p.colAttr.needsUpdate = true
-}
-
 function updateSignals(now: number) {
   const group = arcsGroup
-  const spin = spinGroup
-  const cam = camera
-  if (!group || !spin || !cam)
+  if (!group)
     return
   const dt = lastSignalFrameTime > 0 ? Math.min(now - lastSignalFrameTime, 50) : 16
   lastSignalFrameTime = now
@@ -477,13 +441,29 @@ function updateSignals(now: number) {
       continue
     p.elapsed += dt
     const t = Math.min(p.elapsed / p.duration, 1)
-    // 淡入淡出包络：像信号发射出去又落下
+    // 淡入淡出包络
     const env = smooth01(t / 0.12) * (1 - smooth01((t - 0.72) / 0.28))
     p.head.position.copy(p.curve.getPoint(t))
     ;(p.head.material as THREE.SpriteMaterial).opacity = env
-    updateRibbon(p, t, env, spin, cam)
+    p.arcMat.opacity = env * 0.55
     if (t >= 1)
       removeSignalPacket(group, i)
+  }
+
+  // 冲击波扩散
+  for (let i = impactFlashes.length - 1; i >= 0; i--) {
+    const f = impactFlashes[i]
+    if (!f)
+      continue
+    f.elapsed += dt
+    const t = Math.min(f.elapsed / f.duration, 1)
+    f.ring.scale.setScalar(0.02 + t * 0.13)
+    f.ringMat.opacity = (1 - t) * 0.9
+    const gm = f.glow.material as THREE.SpriteMaterial
+    gm.opacity = (1 - t) * 0.9
+    f.glow.scale.set(0.1 * (1 - t * 0.4), 0.1 * (1 - t * 0.4), 1)
+    if (t >= 1)
+      removeFlash(group, i)
   }
 }
 
