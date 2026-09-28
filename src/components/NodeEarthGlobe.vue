@@ -293,7 +293,7 @@ function startGlobe() {
 
   const earthTex = new THREE.TextureLoader().load(earthTextureUrl)
   earthTex.colorSpace = THREE.SRGBColorSpace
-  earthTex.anisotropy = 4
+  earthTex.anisotropy = renderer?.capabilities.getMaxAnisotropy() ?? 4
   const earth = new THREE.Mesh(
     new THREE.SphereGeometry(1, 64, 64),
     new THREE.MeshPhongMaterial({
@@ -308,13 +308,13 @@ function startGlobe() {
   // 云层：独立缓慢漂移，更有真实感
   const cloudsTex = new THREE.TextureLoader().load(cloudsTextureUrl)
   cloudsTex.colorSpace = THREE.SRGBColorSpace
-  cloudsTex.anisotropy = 4
+  cloudsTex.anisotropy = renderer?.capabilities.getMaxAnisotropy() ?? 4
   cloudsMesh = new THREE.Mesh(
     new THREE.SphereGeometry(1.008, 48, 48),
     new THREE.MeshLambertMaterial({
       map: cloudsTex,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.35,
       depthWrite: false,
     }),
   )
@@ -326,10 +326,10 @@ function startGlobe() {
   spinGroup.add(anchorsGroup)
 
   // 太阳光 + 环境光：白天面明亮，夜晚面不至于死黑
-  const sun = new THREE.DirectionalLight(0xFFF4E2, 2.6)
+  const sun = new THREE.DirectionalLight(0xFFF4E2, 2.8)
   sun.position.set(-4, 2.5, 4)
   scene.add(sun)
-  scene.add(new THREE.AmbientLight(0x93A7C8, 0.5))
+  scene.add(new THREE.AmbientLight(0x93A7C8, 0.45))
 
   scene.add(buildStars(1300, 16, 40))
 
