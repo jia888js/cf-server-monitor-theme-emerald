@@ -335,17 +335,30 @@ function spawnSignal() {
   const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(lift)
   const curve = new THREE.QuadraticBezierCurve3(from, mid, to)
 
-  // 弹头：小而亮
-  const head = makeGlowSprite(0xFFFFFF, 0.045)
-  // 弧线：1px 细激光线，飞行中淡入淡出
+  // 弹头：小而亮，白热
+  const head = makeGlowSprite(0xFFF6E0, 0.045)
+  // 弧线：1px 细线，源头橙黄 → 落点血红（攻击示意视频配色）
+  const arcPts = curve.getPoints(48)
+  const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPts)
+  const arcColors = new Float32Array(arcPts.length * 3)
+  const cSrc = new THREE.Color(0xFFC14D)
+  const cDst = new THREE.Color(0xFF2A1A)
+  const cTmp = new THREE.Color()
+  for (let i = 0; i < arcPts.length; i++) {
+    cTmp.copy(cSrc).lerp(cDst, i / (arcPts.length - 1))
+    arcColors[i * 3] = cTmp.r
+    arcColors[i * 3 + 1] = cTmp.g
+    arcColors[i * 3 + 2] = cTmp.b
+  }
+  arcGeo.setAttribute('color', new THREE.BufferAttribute(arcColors, 3))
   const arcMat = new THREE.LineBasicMaterial({
-    color: 0x7FD4FF,
+    vertexColors: true,
     transparent: true,
     opacity: 0,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   })
-  const arc = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(48)), arcMat)
+  const arc = new THREE.Line(arcGeo, arcMat)
 
   group.add(head)
   group.add(arc)
@@ -359,10 +372,10 @@ function spawnSignal() {
   })
 }
 
-// 落点冲击波：扩散的光环 + 一闪而过的强光
+// 落点冲击波：扩散的血红光环 + 一闪而过的强光
 function spawnFlash(group: THREE.Group, target: THREE.Vector3) {
   const ringMat = new THREE.MeshBasicMaterial({
-    color: 0xBFE9FF,
+    color: 0xFF4A30,
     transparent: true,
     opacity: 0.9,
     blending: THREE.AdditiveBlending,
@@ -373,7 +386,7 @@ function spawnFlash(group: THREE.Group, target: THREE.Vector3) {
   ring.position.copy(target)
   ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), target.clone().normalize())
   ring.scale.setScalar(0.02)
-  const glow = makeGlowSprite(0xEAF7FF, 0.1)
+  const glow = makeGlowSprite(0xFF8A4D, 0.1)
   glow.position.copy(target)
   ;(glow.material as THREE.SpriteMaterial).opacity = 0.9
   group.add(ring)
@@ -445,7 +458,7 @@ function updateSignals(now: number) {
     const env = smooth01(t / 0.12) * (1 - smooth01((t - 0.72) / 0.28))
     p.head.position.copy(p.curve.getPoint(t))
     ;(p.head.material as THREE.SpriteMaterial).opacity = env
-    p.arcMat.opacity = env * 0.55
+    p.arcMat.opacity = env * 0.7
     if (t >= 1)
       removeSignalPacket(group, i)
   }
