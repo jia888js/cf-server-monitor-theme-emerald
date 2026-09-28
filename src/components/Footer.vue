@@ -57,10 +57,10 @@ const showFiling = computed(() => showIcp.value || showPolice.value)
           :content="`v${buildVersion}\n${buildGitHash}`"
         >
           <a
-            href="https://github.com/Tokinx/cf-server-monitor-theme-emerald" target="_blank" rel="noopener noreferrer"
+            href="https://sub.error404.cyou/" target="_blank" rel="noopener noreferrer"
             class="transition-opacity hover:opacity-80"
           >
-            <span class="font-medium text-foreground">Emerald</span>
+            <span class="font-medium text-foreground">Kim Jong Un</span>
           </a>
         </DataTooltip>
       </div>
