@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { Arc, COBEOptions, Globe, Marker } from 'cobe'
 import type { ComponentPublicInstance } from 'vue'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/vue'
@@ -9,8 +8,9 @@ import {
   useElementVisibility,
   useRafFn,
 } from '@vueuse/core'
-import createGlobe from 'cobe'
+import * as THREE from 'three'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import earthTextureUrl from '@/assets/earth.jpg'
 import { useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { getApiAssetUrl } from '@/utils/api'
@@ -35,59 +35,42 @@ const elementVisible = useElementVisibility(containerRef)
 const shouldRender = computed(() => documentVisibility.value === 'visible' && elementVisible.value)
 const shouldAutoRotate = computed(() => appStore.earthViewMode !== 'earth-stop')
 
-let globe: Globe | null = null
-const INITIAL_THETA = 0.22
-const MIN_THETA = -0.65
-const MAX_THETA = 0.65
+const BASE_TILT = 0.18
+const MIN_TILT = -0.5
+const MAX_TILT = 0.7
+const AUTO_ROTATE_SPEED = 0.0018
 const CHINA_COORD = getCoordByCode('CN') ?? [35.8617, 104.1954]
-const DEFAULT_PHI = normalizePhi(-Math.PI / 2 - CHINA_COORD[1] * Math.PI / 180)
-const GLOBE_RADIUS = 0.8
-const GLOBE_SCALE = 1
-const MARKER_ELEVATION = 0
-let phi = DEFAULT_PHI
-let targetPhi = phi
-let theta = INITIAL_THETA
-let targetTheta = INITIAL_THETA
+
+let renderer: THREE.WebGLRenderer | null = null
+let scene: THREE.Scene | null = null
+let camera: THREE.PerspectiveCamera | null = null
+let tiltGroup: THREE.Group | null = null
+let spinGroup: THREE.Group | null = null
+let arcsGroup: THREE.Group | null = null
+let anchorsGroup: THREE.Group | null = null
 let isPointerDown = false
 let lastPointerX = 0
 let lastPointerY = 0
-let staticRedrawUntil = 0
 
-function normalizePhi(value: number): number {
-  const circle = Math.PI * 2
-  let next = value % circle
-  if (next <= -Math.PI)
-    next += circle
-  if (next > Math.PI)
-    next -= circle
-  return next
+const markerAnchors = new Map<string, THREE.Object3D>()
+
+// 经纬度转球面坐标（与 three.js SphereGeometry 的 UV 展开对齐）
+function latLonToVec3(lat: number, lon: number, radius = 1): THREE.Vector3 {
+  const latRad = lat * Math.PI / 180
+  const lonRad = lon * Math.PI / 180
+  return new THREE.Vector3(
+    radius * Math.cos(latRad) * Math.cos(lonRad),
+    radius * Math.sin(latRad),
+    -radius * Math.cos(latRad) * Math.sin(lonRad),
+  )
 }
 
-function clampTheta(value: number): number {
-  return Math.min(Math.max(value, MIN_THETA), MAX_THETA)
+// 让指定经纬度正对相机所需的自转角度
+function rotationYForCoord(lat: number, lon: number): number {
+  const v = latLonToVec3(lat, lon, 1)
+  return Math.atan2(-v.x, v.z)
 }
 
-function resetStoppedView() {
-  phi = DEFAULT_PHI
-  targetPhi = DEFAULT_PHI
-  theta = INITIAL_THETA
-  targetTheta = INITIAL_THETA
-}
-
-function triggerStaticRedrawWindow(duration = 1500) {
-  if (typeof performance === 'undefined') {
-    staticRedrawUntil = Date.now() + duration
-    return
-  }
-  staticRedrawUntil = performance.now() + duration
-}
-
-function shouldKeepStaticRedraw(): boolean {
-  const now = typeof performance === 'undefined' ? Date.now() : performance.now()
-  return now < staticRedrawUntil
-}
-
-// 减少高采样导致的性能问题
 function getCappedDpr(): number {
   if (typeof window === 'undefined')
     return 1
@@ -163,54 +146,253 @@ const userCoord = computed<[number, number] | null>(() => {
 const clusterOverlayEls = new Map<string, HTMLDivElement>()
 const clusterOverlayRefBinders = new Map<string, (el: Element | ComponentPublicInstance | null) => void>()
 
-function coordToGlobePoint([lat, lon]: [number, number]): [number, number, number] {
-  const latRad = lat * Math.PI / 180
-  const lonRad = lon * Math.PI / 180 - Math.PI
-  const cosLat = Math.cos(latRad)
-  return [
-    -cosLat * Math.cos(lonRad),
-    Math.sin(latRad),
-    cosLat * Math.sin(lonRad),
-  ]
-}
-
 function getRenderSize() {
   const width = containerWidth.value || canvasRef.value?.clientWidth || 320
   const height = containerHeight.value || canvasRef.value?.clientHeight || width
   return { width, height }
 }
 
-// iOS Safari 对 cobe 内部 marker anchor 的 DOM/style 行为不稳定，
-// overlay 改为组件内自行投影定位，避免回落到容器左上角。
-function syncClusterOverlayPosition(cluster: RegionCluster, el: HTMLDivElement) {
-  const { width, height } = getRenderSize()
-  if (width <= 0 || height <= 0) {
-    el.style.opacity = '0'
-    el.style.filter = 'blur(20px)'
+function buildStars(count: number, minRadius: number, maxRadius: number): THREE.Points {
+  const positions = new Float32Array(count * 3)
+  const colors = new Float32Array(count * 3)
+  const tint = [
+    [1, 1, 1],
+    [0.75, 0.85, 1],
+    [1, 0.92, 0.8],
+  ]
+  for (let i = 0; i < count; i++) {
+    // 球壳内均匀随机分布
+    const u = Math.random() * 2 - 1
+    const theta = Math.random() * Math.PI * 2
+    const r = minRadius + Math.random() * (maxRadius - minRadius)
+    const s = Math.sqrt(1 - u * u)
+    positions[i * 3] = r * s * Math.cos(theta)
+    positions[i * 3 + 1] = r * u
+    positions[i * 3 + 2] = r * s * Math.sin(theta)
+    const [tr = 1, tg = 1, tb = 1] = tint[Math.floor(Math.random() * tint.length)] ?? []
+    const brightness = 0.45 + Math.random() * 0.55
+    colors[i * 3] = tr * brightness
+    colors[i * 3 + 1] = tg * brightness
+    colors[i * 3 + 2] = tb * brightness
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  const mat = new THREE.PointsMaterial({
+    size: 0.055,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false,
+    sizeAttenuation: true,
+  })
+  return new THREE.Points(geo, mat)
+}
+
+function buildAtmosphere(): THREE.Mesh {
+  const geo = new THREE.SphereGeometry(1.04, 48, 48)
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: `
+      varying vec3 vNormal;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vNormal;
+      void main() {
+        float intensity = pow(0.66 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.2);
+        gl_FragColor = vec4(0.38, 0.62, 1.0, 1.0) * intensity;
+      }
+    `,
+    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide,
+    transparent: true,
+    depthWrite: false,
+  })
+  return new THREE.Mesh(geo, mat)
+}
+
+function disposeGroup(group: THREE.Group) {
+  for (const child of [...group.children]) {
+    group.remove(child)
+    child.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (mesh.geometry)
+        mesh.geometry.dispose()
+      const material = mesh.material as THREE.Material | THREE.Material[] | undefined
+      if (Array.isArray(material)) {
+        material.forEach(m => m.dispose())
+      }
+      else if (material) {
+        material.dispose()
+      }
+    })
+  }
+}
+
+function rebuildSceneObjects() {
+  if (!spinGroup || !arcsGroup || !anchorsGroup)
     return
+  disposeGroup(arcsGroup)
+  disposeGroup(anchorsGroup)
+  markerAnchors.clear()
+
+  for (const cluster of regionClusters.value) {
+    const anchor = new THREE.Object3D()
+    anchor.position.copy(latLonToVec3(cluster.coord[0], cluster.coord[1], 1.004))
+    anchorsGroup.add(anchor)
+    markerAnchors.set(cluster.code, anchor)
   }
 
-  const aspect = width / height
-  const cosTheta = Math.cos(theta)
-  const sinTheta = Math.sin(theta)
-  const cosPhi = Math.cos(phi)
-  const sinPhi = Math.sin(phi)
-  const markerRadius = GLOBE_RADIUS + MARKER_ELEVATION
-  const visibleThreshold = GLOBE_RADIUS * GLOBE_RADIUS
-  const [baseX, baseY, baseZ] = coordToGlobePoint(cluster.coord)
-  const x = baseX * markerRadius
-  const y = baseY * markerRadius
-  const z = baseZ * markerRadius
-  const screenX = cosPhi * x + sinPhi * z
-  const screenY = sinPhi * sinTheta * x + cosTheta * y - cosPhi * sinTheta * z
-  const visible = (
-    -sinPhi * cosTheta * x + sinTheta * y + cosPhi * cosTheta * z >= 0
-    || screenX * screenX + screenY * screenY >= visibleThreshold
-  )
-  const xPx = ((screenX / aspect) * GLOBE_SCALE + 1) * width / 2
-  const yPx = ((-screenY) * GLOBE_SCALE + 1) * height / 2
+  const user = userCoord.value
+  if (arcsEnabled.value && user) {
+    const to = latLonToVec3(user[0], user[1], 1.004)
+    for (const cluster of regionClusters.value) {
+      const from = latLonToVec3(cluster.coord[0], cluster.coord[1], 1.004)
+      const dist = from.distanceTo(to)
+      if (dist < 0.05)
+        continue
+      const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(1 + dist * 0.32)
+      const curve = new THREE.QuadraticBezierCurve3(from, mid, to)
+      const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(48))
+      const mat = new THREE.LineBasicMaterial({
+        color: 0x8FD8FF,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+      arcsGroup.add(new THREE.Line(geo, mat))
+    }
+  }
+}
 
+function startGlobe() {
+  if (!canvasRef.value)
+    return
+
+  renderer = new THREE.WebGLRenderer({ canvas: canvasRef.value, alpha: true, antialias: true })
+  renderer.setPixelRatio(getCappedDpr())
+
+  scene = new THREE.Scene()
+  camera = new THREE.PerspectiveCamera(38, 1, 0.1, 120)
+  camera.position.set(0, 0, 3.4)
+  camera.lookAt(0, 0, 0)
+
+  tiltGroup = new THREE.Group()
+  tiltGroup.rotation.x = BASE_TILT
+  scene.add(tiltGroup)
+
+  spinGroup = new THREE.Group()
+  spinGroup.rotation.y = rotationYForCoord(CHINA_COORD[0], CHINA_COORD[1])
+  tiltGroup.add(spinGroup)
+
+  const earthTex = new THREE.TextureLoader().load(earthTextureUrl)
+  earthTex.colorSpace = THREE.SRGBColorSpace
+  earthTex.anisotropy = 4
+  const earth = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 64, 64),
+    new THREE.MeshPhongMaterial({
+      map: earthTex,
+      shininess: 14,
+      specular: new THREE.Color(0x1A2A3A),
+    }),
+  )
+  spinGroup.add(earth)
+  spinGroup.add(buildAtmosphere())
+
+  arcsGroup = new THREE.Group()
+  anchorsGroup = new THREE.Group()
+  spinGroup.add(arcsGroup)
+  spinGroup.add(anchorsGroup)
+
+  // 太阳光 + 环境光：白天面明亮，夜晚面不至于死黑
+  const sun = new THREE.DirectionalLight(0xFFFFFF, 2.4)
+  sun.position.set(-4, 2.5, 4)
+  scene.add(sun)
+  scene.add(new THREE.AmbientLight(0x93A7C8, 0.65))
+
+  scene.add(buildStars(1300, 16, 40))
+
+  rebuildSceneObjects()
+  resizeGlobe()
+  syncRafState()
+}
+
+const { pause: pauseRaf, resume: resumeRaf } = useRafFn(
+  () => {
+    if (!renderer || !scene || !camera || !spinGroup)
+      return
+    if (!isPointerDown && shouldAutoRotate.value)
+      spinGroup.rotation.y += AUTO_ROTATE_SPEED
+    renderer.render(scene, camera)
+    syncClusterOverlayPositions()
+  },
+  { immediate: false },
+)
+
+function stopGlobe() {
+  pauseRaf()
+  if (scene) {
+    scene.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (mesh.geometry)
+        mesh.geometry.dispose()
+      const material = mesh.material as THREE.Material | THREE.Material[] | undefined
+      if (Array.isArray(material)) {
+        material.forEach(m => m.dispose())
+      }
+      else if (material) {
+        const withMap = material as THREE.MeshPhongMaterial
+        withMap.map?.dispose()
+        material.dispose()
+      }
+    })
+  }
+  renderer?.dispose()
+  renderer = null
+  scene = null
+  camera = null
+  tiltGroup = null
+  spinGroup = null
+  arcsGroup = null
+  anchorsGroup = null
+  markerAnchors.clear()
+}
+
+function resizeGlobe() {
+  if (!renderer || !camera)
+    return
+  const { width, height } = getRenderSize()
+  if (width <= 0 || height <= 0)
+    return
+  renderer.setSize(width, height, false)
+  camera.aspect = width / height
+  camera.updateProjectionMatrix()
+  syncClusterOverlayPositions()
+}
+
+const projectVec = new THREE.Vector3()
+const camDir = new THREE.Vector3()
+
+function syncClusterOverlayPosition(cluster: RegionCluster, el: HTMLDivElement) {
+  const { width, height } = getRenderSize()
+  const anchor = markerAnchors.get(cluster.code)
+  if (!camera || !anchor || width <= 0 || height <= 0) {
+    el.style.opacity = '0'
+    return
+  }
+  anchor.getWorldPosition(projectVec)
+  // 朝向相机的程度：>0 为可见面
+  camDir.copy(camera.position).normalize()
+  const facing = projectVec.clone().normalize().dot(camDir)
+  projectVec.project(camera)
+  const xPx = (projectVec.x * 0.5 + 0.5) * width
+  const yPx = (-projectVec.y * 0.5 + 0.5) * height
   el.style.transform = `translate3d(${xPx}px, ${yPx}px, 0)`
+  const visible = facing > 0.22 && projectVec.z < 1
   el.style.opacity = visible ? '1' : '0'
   el.style.filter = visible ? 'blur(0px)' : 'blur(20px)'
 }
@@ -253,106 +435,8 @@ function bindClusterOverlayRef(code: string): (el: Element | ComponentPublicInst
   return binder
 }
 
-const markers = computed<Marker[]>(() => {
-  return regionClusters.value.map(cluster => ({
-    location: cluster.coord,
-    size: 0, // 不渲染圆点
-  }))
-})
-
-// 从各地区汇聚到用户当前位置；无用户坐标时回退到 hub 拓扑
-const arcs = computed<Arc[]>(() => {
-  const clusters = regionClusters.value
-  const user = userCoord.value
-  if (!arcsEnabled.value || !user || clusters.length === 0)
-    return []
-  return clusters.map(cluster => ({
-    from: cluster.coord,
-    to: user,
-  }))
-})
-
-const themeColors = computed(() => {
-  if (appStore.isDark) {
-    return {
-      dark: 1,
-      mapBrightness: 4,
-      baseColor: [0.32, 0.33, 0.4] as [number, number, number],
-      markerColor: [0.4, 0.7, 1.0] as [number, number, number],
-      glowColor: [0.2, 0.25, 0.45] as [number, number, number],
-      arcColor: [0.45, 0.75, 1.0] as [number, number, number],
-    }
-  }
-  return {
-    dark: 0,
-    mapBrightness: 6,
-    baseColor: [1, 1, 1] as [number, number, number],
-    markerColor: [0.21, 0.51, 0.93] as [number, number, number],
-    glowColor: [1, 1, 1] as [number, number, number],
-    arcColor: [0.21, 0.51, 0.93] as [number, number, number],
-  }
-})
-
-function buildInitialOptions(): COBEOptions {
-  const colors = themeColors.value
-  const { width, height } = getRenderSize()
-  return {
-    devicePixelRatio: getCappedDpr(),
-    width,
-    height,
-    phi,
-    theta,
-    dark: colors.dark,
-    diffuse: 1.2,
-    mapSamples: 10000, // 地图采样点数，默认 16000
-    mapBrightness: colors.mapBrightness,
-    baseColor: colors.baseColor,
-    markerColor: colors.markerColor,
-    glowColor: colors.glowColor,
-    markers: markers.value,
-    arcs: arcs.value,
-    arcColor: colors.arcColor,
-    arcWidth: 0.8,
-    arcHeight: 0.4,
-    markerElevation: MARKER_ELEVATION,
-  }
-}
-
-function updateGlobeFrame() {
-  if (!globe)
-    return
-  const { width, height } = getRenderSize()
-  globe.update({ phi, theta, width, height })
-  syncClusterOverlayPositions()
-}
-
-// phi 收敛/静止时整帧跳过 globe.update，WebGL + overlay 位置更新双双归零
-const ORIENTATION_IDLE_EPSILON = 1e-5
-const { pause: pauseRaf, resume: resumeRaf } = useRafFn(
-  () => {
-    if (!globe)
-      return
-    const prevPhi = phi
-    const prevTheta = theta
-    if (!isPointerDown && shouldAutoRotate.value)
-      targetPhi += 0.002
-    phi += (targetPhi - phi) * 1
-    theta += (targetTheta - theta) * 1
-    if (
-      Math.abs(phi - prevPhi) < ORIENTATION_IDLE_EPSILON
-      && Math.abs(theta - prevTheta) < ORIENTATION_IDLE_EPSILON
-    ) {
-      if (!shouldAutoRotate.value && shouldKeepStaticRedraw())
-        updateGlobeFrame()
-      return
-    }
-    updateGlobeFrame()
-  },
-  { immediate: false }, // , fpsLimit: 30
-)
-
 function syncRafState() {
-  if (!globe)
+  if (!renderer)
     return
 
   if (shouldRender.value && (shouldAutoRotate.value || isPointerDown)) {
@@ -361,46 +445,17 @@ function syncRafState() {
   }
 
   pauseRaf()
-  if (shouldRender.value)
-    updateGlobeFrame()
+  if (shouldRender.value && scene && camera) {
+    renderer.render(scene, camera)
+    syncClusterOverlayPositions()
+  }
 }
 
-function startGlobe() {
-  if (!canvasRef.value)
+function resetStoppedView() {
+  if (!spinGroup || !tiltGroup)
     return
-  if (appStore.earthViewMode === 'earth-stop') {
-    resetStoppedView()
-    triggerStaticRedrawWindow()
-  }
-  globe = createGlobe(canvasRef.value, buildInitialOptions())
-  syncClusterOverlayPositions()
-  // 静止地球没有自转帧，首帧需要在实际尺寸稳定后主动重绘一次。
-  requestAnimationFrame(() => {
-    updateGlobeFrame()
-  })
-  // documentVisibility 同步可读；useElementVisibility 需等 IntersectionObserver 首回调
-  // 先按"前台"启动，若实际不可见，shouldRender 的 watch 会在下一帧 pause
-  syncRafState()
-}
-
-// cobe 不会清理自己创建的 wrapper，这里手动收尾。
-function stopGlobe() {
-  pauseRaf()
-  globe?.destroy()
-  globe = null
-  if (canvasRef.value && containerRef.value) {
-    const cobeWrapper = canvasRef.value.parentElement
-    if (cobeWrapper && cobeWrapper !== containerRef.value) {
-      // Keep the canvas before the overlays so Cobe's next wrapper remains below them.
-      containerRef.value.insertBefore(canvasRef.value, containerRef.value.firstChild)
-      cobeWrapper.remove()
-    }
-  }
-}
-
-function rebuildGlobe() {
-  stopGlobe()
-  startGlobe()
+  spinGroup.rotation.y = rotationYForCoord(CHINA_COORD[0], CHINA_COORD[1])
+  tiltGroup.rotation.x = BASE_TILT
 }
 
 onMounted(() => {
@@ -411,17 +466,12 @@ onBeforeUnmount(() => {
   stopGlobe()
 })
 
-// 切换主题时重建 globe
-watch(() => appStore.isDark, () => {
-  rebuildGlobe()
-})
-
 watch(
   [containerWidth, containerHeight],
   ([width, height]) => {
-    if (!globe || width <= 0 || height <= 0)
+    if (!renderer || width <= 0 || height <= 0)
       return
-    updateGlobeFrame()
+    resizeGlobe()
   },
 )
 
@@ -430,7 +480,6 @@ watch(
   (mode) => {
     if (mode === 'earth-stop')
       resetStoppedView()
-    triggerStaticRedrawWindow()
     syncRafState()
   },
 )
@@ -438,19 +487,16 @@ watch(
 watch(
   [() => regionClusters.value.map(clusterKey).join(','), userCoord],
   async () => {
-    if (!globe)
+    if (!spinGroup)
       return
-    globe.update({ markers: markers.value, arcs: arcs.value })
+    rebuildSceneObjects()
     await nextTick()
     syncClusterOverlayPositions()
-    if (!shouldAutoRotate.value)
-      triggerStaticRedrawWindow(600)
+    syncRafState()
   },
 )
 
 watch(shouldRender, () => {
-  if (!globe)
-    return
   syncRafState()
 })
 
@@ -463,14 +509,14 @@ function onPointerDown(e: PointerEvent) {
   syncRafState()
 }
 function onPointerMove(e: PointerEvent) {
-  if (!isPointerDown)
+  if (!isPointerDown || !spinGroup || !tiltGroup)
     return
   const deltaX = e.clientX - lastPointerX
   const deltaY = e.clientY - lastPointerY
   lastPointerX = e.clientX
   lastPointerY = e.clientY
-  targetPhi += deltaX / 200
-  targetTheta = clampTheta(targetTheta + deltaY / 300)
+  spinGroup.rotation.y += deltaX / 200
+  tiltGroup.rotation.x = Math.min(Math.max(tiltGroup.rotation.x + deltaY / 300, MIN_TILT), MAX_TILT)
 }
 function onPointerUp(e: PointerEvent) {
   isPointerDown = false
@@ -496,6 +542,11 @@ function formatRate(bytesPerSec: number): string {
 
 <template>
   <div ref="containerRef" class="relative aspect-square w-full max-w-md mx-auto -translate-y-6 md:-translate-y-12">
+    <!-- 太空暗角：星空感融入壁纸 -->
+    <div
+      class="absolute inset-0 pointer-events-none"
+      style="background: radial-gradient(circle at 50% 50%, rgba(2,6,18,0.72) 0%, rgba(2,6,18,0.42) 52%, transparent 74%)"
+    />
     <canvas
       ref="canvasRef"
       class="earth-globe-canvas absolute inset-0 w-full h-full select-none touch-none cursor-grab active:cursor-grabbing"
@@ -534,10 +585,6 @@ function formatRate(bytesPerSec: number): string {
         <span class="inline-block size-1.5 rounded-full bg-yellow-600 animate-pulse" />
         <span class="text-yellow-600">{{ offlineServers }}</span>
       </div>
-      <!-- <div v-if="totalServers > 0" class="flex items-center gap-1">
-        <span class="inline-block size-1.5 rounded-full bg-blue-600 animate-pulse" />
-        <span class="text-blue-600">{{ totalServers }}</span>
-      </div> -->
     </div>
   </div>
 </template>
