@@ -48,6 +48,8 @@ const trafficStatus = computed(() => getTrafficLevel(trafficUsedPercentage.value
 const trafficUsed = computed(() => getTrafficUsed(props.node))
 const priceTags = computed(() => getPriceTags(props.node, appStore.lang))
 const showPriceExpire = computed(() => appStore.isLoggedIn || appStore.showPriceExpireToGuests)
+// 游客只看百分比/总量，不看 load、已用/总量明细
+const isGuest = computed(() => !appStore.isLoggedIn)
 
 interface LineBadge { carrier: string, line: string }
 const lineBadges = computed<LineBadge[]>(() => {
@@ -130,7 +132,7 @@ function openPingDialog() {
               <span>{{ (props.node.cpu ?? 0).toFixed(1) }}%</span>
             </div>
             <ProgressThin :percentage="props.node.cpu ?? 0" :status="cpuStatus" :height="4" />
-            <div class="text-[11px] text-muted-foreground truncate">
+            <div v-if="!isGuest" class="text-[11px] text-muted-foreground truncate">
               {{ props.node.load.toFixed(2) ?? 0 }}, {{ props.node.load5.toFixed(2) ?? 0 }}, {{
                 props.node.load15.toFixed(2) ?? 0 }}
             </div>
@@ -145,7 +147,7 @@ function openPingDialog() {
               <span>{{ memPercentage.toFixed(1) }}%</span>
             </div>
             <ProgressThin :percentage="memPercentage" :status="memStatus" :height="4" />
-            <DataTooltip placement="top" class="block" :content-class="[!props.node.swap && '!hidden']">
+            <DataTooltip v-if="!isGuest" placement="top" class="block" :content-class="[!props.node.swap && '!hidden']">
               <div class="text-[11px] text-muted-foreground truncate">
                 {{ formatBytes(props.node.ram ?? 0) }} / {{ formatBytes(props.node.mem_total ?? 0) }}
               </div>
@@ -167,7 +169,7 @@ function openPingDialog() {
               <span>{{ diskPercentage.toFixed(1) }}%</span>
             </div>
             <ProgressThin :percentage="diskPercentage" :status="diskStatus" :height="4" />
-            <div class="text-[11px] text-muted-foreground truncate">
+            <div v-if="!isGuest" class="text-[11px] text-muted-foreground truncate">
               {{ formatBytes(props.node.disk ?? 0) }} / {{ formatBytes(props.node.disk_total ?? 0) }}
             </div>
           </div>
@@ -176,12 +178,13 @@ function openPingDialog() {
           <div class="flex flex-col gap-1">
             <div class="w-full text-xs flex flex-row justify-between">
               <span class="text-muted-foreground">
-                流量
+                {{ isGuest ? '本周期流量' : '流量' }}
               </span>
-              <span>{{ trafficUsedPercentage.toFixed(1) }}%</span>
+              <span v-if="isGuest">{{ formatBytes(trafficUsed) }} / {{ showTrafficProgress(props.node) ? formatBytes(props.node.traffic_limit) : '∞' }}</span>
+              <span v-else>{{ trafficUsedPercentage.toFixed(1) }}%</span>
             </div>
             <ProgressThin :percentage="trafficUsedPercentage" :status="trafficStatus" :height="4" />
-            <DataTooltip placement="top" class="block">
+            <DataTooltip v-if="!isGuest" placement="top" class="block">
               <div class="text-[11px] text-muted-foreground truncate">
                 {{ formatBytes(trafficUsed) }} /
                 <template v-if="showTrafficProgress(node)">
