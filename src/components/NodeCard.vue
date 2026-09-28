@@ -178,7 +178,7 @@ function openPingDialog() {
           <div class="flex flex-col gap-1">
             <div class="w-full text-xs flex flex-row justify-between">
               <span class="text-muted-foreground">
-                {{ isGuest ? '本周期流量' : '流量' }}
+                流量
               </span>
               <span v-if="isGuest">{{ formatBytes(trafficUsed) }} / {{ showTrafficProgress(props.node) ? formatBytes(props.node.traffic_limit) : '∞' }}</span>
               <span v-else>{{ trafficUsedPercentage.toFixed(1) }}%</span>
