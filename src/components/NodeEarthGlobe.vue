@@ -243,20 +243,22 @@ function rebuildSceneObjects() {
 
   for (const cluster of regionClusters.value) {
     const anchor = new THREE.Object3D()
-    anchor.position.copy(latLonToVec3(cluster.coord[0], cluster.coord[1], 1.004))
+    anchor.position.copy(latLonToVec3(cluster.coord[0], cluster.coord[1], 1.016))
     anchorsGroup.add(anchor)
     markerAnchors.set(cluster.code, anchor)
   }
 
   const user = userCoord.value
   if (arcsEnabled.value && user) {
-    const to = latLonToVec3(user[0], user[1], 1.004)
+    const to = latLonToVec3(user[0], user[1], 1.016)
     for (const cluster of regionClusters.value) {
-      const from = latLonToVec3(cluster.coord[0], cluster.coord[1], 1.004)
+      const from = latLonToVec3(cluster.coord[0], cluster.coord[1], 1.016)
       const dist = from.distanceTo(to)
       if (dist < 0.05)
         continue
-      const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(1 + dist * 0.32)
+      // 弧顶至少高出地表，保证弧线浮在球面上方不扎进地球
+      const lift = 1.016 + 0.07 + dist * 0.32
+      const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(lift)
       const curve = new THREE.QuadraticBezierCurve3(from, mid, to)
       const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(48))
       const mat = new THREE.LineBasicMaterial({
