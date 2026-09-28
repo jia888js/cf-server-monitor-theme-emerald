@@ -15,8 +15,12 @@ import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, 
 import { formatOfflineTime, getCustomTags, getPriceTags, getRemainingTimeTagClass, getTrafficLevel, getTrafficUsed, getTrafficUsedPercentage, hasRegion, showTrafficProgress } from '@/utils/nodeHelper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
+import { lineMap, loadLineInfo } from '@/utils/lineInfo'
 
 const props = defineProps<{ node: NodeData }>()
+
+// 三网线路数据（中转 Worker 公开接口），加载一次全站共用
+loadLineInfo()
 
 const emit = defineEmits<{
   click: []
@@ -47,17 +51,12 @@ const showPriceExpire = computed(() => appStore.isLoggedIn || appStore.showPrice
 
 interface LineBadge { carrier: string, line: string }
 const lineBadges = computed<LineBadge[]>(() => {
-  const remark = props.node.remark ?? ''
-  const m = remark.match(/\[线路\]([^\[\n]+)/)
-  const body = m?.[1]
-  if (!body)
+  // 公开接口不带备注，线路数据从中转 Worker 取，按服务器名匹配
+  const info = lineMap.value[props.node.name]
+  if (!info || typeof info !== 'object')
     return []
-  return body.split('|').map(s => s.trim()).filter(Boolean).map((part) => {
-    const idx = part.indexOf(':')
-    if (idx < 0)
-      return null
-    const carrier = part.slice(0, idx).trim()
-    const line = part.slice(idx + 1).trim()
+  return ['电信', '联通', '移动'].map((carrier) => {
+    const line = info[carrier]
     return carrier && line ? { carrier, line } : null
   }).filter((x): x is LineBadge => x !== null)
 })
