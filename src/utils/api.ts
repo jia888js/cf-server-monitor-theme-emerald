@@ -2,6 +2,7 @@ import type { CurrencyCode } from '@/utils/financeHelper'
 import type { Client, NodeStatus, NodeStatusPing, PingRecord, PingWindowPoint, StatusRecord } from '@/utils/rpc'
 import { isSupportedCurrency, normalizedCurrencyMap } from '@/utils/financeHelper'
 import { requestTurnstileToken } from '@/utils/turnstile'
+import defaultBackgroundImage from '@/assets/bg.jpg'
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000
 const MB = 1024 * 1024
@@ -388,8 +389,8 @@ const DEFAULT_THEME_SETTINGS: ThemeSettings = {
   policeUrl: '',
   backgroundEnabled: false,
   backgroundType: 'image',
-  lightBackgroundUrl: '',
-  darkBackgroundUrl: '',
+  lightBackgroundUrl: defaultBackgroundImage,
+  darkBackgroundUrl: defaultBackgroundImage,
   backgroundBlur: 0,
   backgroundOverlay: 0,
 }
