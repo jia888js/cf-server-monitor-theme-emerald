@@ -43,6 +43,33 @@ const trafficUsedPercentage = computed(() => getTrafficUsedPercentage(props.node
 const trafficStatus = computed(() => getTrafficLevel(trafficUsedPercentage.value))
 const trafficUsed = computed(() => getTrafficUsed(props.node))
 const priceTags = computed(() => getPriceTags(props.node, appStore.lang))
+const showPriceExpire = computed(() => appStore.isLoggedIn || appStore.showPriceExpireToGuests)
+
+interface LineBadge { carrier: string, line: string }
+const lineBadges = computed<LineBadge[]>(() => {
+  const remark = props.node.remark ?? ''
+  const m = remark.match(/\[线路\]([^\[\n]+)/)
+  const body = m?.[1]
+  if (!body)
+    return []
+  return body.split('|').map(s => s.trim()).filter(Boolean).map((part) => {
+    const idx = part.indexOf(':')
+    if (idx < 0)
+      return null
+    const carrier = part.slice(0, idx).trim()
+    const line = part.slice(idx + 1).trim()
+    return carrier && line ? { carrier, line } : null
+  }).filter((x): x is LineBadge => x !== null)
+})
+function lineBadgeClass(carrier: string): string {
+  if (carrier.includes('电信'))
+    return 'text-sky-600 dark:text-sky-400 border-sky-500/30 bg-sky-500/10'
+  if (carrier.includes('联通'))
+    return 'text-red-600 dark:text-red-400 border-red-500/30 bg-red-500/10'
+  if (carrier.includes('移动'))
+    return 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+  return 'text-muted-foreground border-border bg-muted/40'
+}
 const remainingTimeTagClass = computed(() => getRemainingTimeTagClass(props.node))
 const customTags = computed(() => getCustomTags(props.node))
 
@@ -216,7 +243,7 @@ function openPingDialog() {
                 {{ props.node.uptime > 0 ? formatUptime(props.node.uptime) : '' }}
               </span>
             </div>
-            <div class="flex items-center justify-between">
+            <div v-if="showPriceExpire" class="flex items-center justify-between">
               <span class="truncate">
                 费用
               </span>
@@ -258,6 +285,22 @@ function openPingDialog() {
               </div>
               <div v-else class="truncate">
                 N/A
+              </div>
+            </div>
+            <div v-if="lineBadges.length > 0" class="flex items-center justify-between">
+              <span class="truncate">
+                线路
+              </span>
+              <div class="border-t-2 border-dotted border-gray-500/10 mx-2 flex-1" />
+              <div class="flex flex-row flex-wrap justify-end gap-1">
+                <span
+                  v-for="badge in lineBadges" :key="badge.carrier"
+                  class="inline-flex items-center gap-1 rounded border px-1.5 py-px text-[11px] font-medium leading-4"
+                  :class="lineBadgeClass(badge.carrier)"
+                >
+                  <span class="opacity-80">{{ badge.carrier }}</span>
+                  <span>{{ badge.line }}</span>
+                </span>
               </div>
             </div>
             <template v-if="nodesStore.showThreeNetDetails">

@@ -13,6 +13,8 @@
 - `CF Server Monitor` WebSocket 实时更新与断线重连
 - 单后端 Turnstile 验证
 - 深色、浅色和跟随系统主题
+- 节点卡片线路徽章：从服务器备注解析 `[线路]电信:CN2 GIA|联通:9929|移动:CMIN2` 并渲染为三网线路徽章
+- 财务信息与费用到期显示：管理员始终可见，游客可见性由主题设置 `showFinanceToGuests` / `showPriceExpireToGuests` 开关控制
 
 ## 主题设置
 
@@ -80,6 +82,18 @@
       "value": "false",
       "options": "",
       "description": "开启后离线节点默认显示到所有节点最后"
+    },
+    {
+      "key": "showFinanceToGuests",
+      "value": "false",
+      "options": "true,false",
+      "description": "游客是否可见财务信息（总价值/月均支出/剩余价值）；管理员始终可见"
+    },
+    {
+      "key": "showPriceExpireToGuests",
+      "value": "false",
+      "options": "true,false",
+      "description": "游客是否可见节点卡片费用与剩余天数；管理员始终可见"
     },
     {
       "key": "icpEnabled",

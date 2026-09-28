@@ -242,6 +242,10 @@ export interface ThemeSettings {
   hideAdminEntryWhenLoggedOut: boolean
   disablePageAnimation: boolean
   offlineNodesLast: boolean
+  /** 游客是否可见财务信息（总价值/月均支出/剩余价值）；管理员始终可见 */
+  showFinanceToGuests: boolean
+  /** 游客是否可见卡片费用与剩余天数；管理员始终可见 */
+  showPriceExpireToGuests: boolean
   icpEnabled: boolean
   icpNumber: string
   icpUrl: string
@@ -374,6 +378,8 @@ const DEFAULT_THEME_SETTINGS: ThemeSettings = {
   hideAdminEntryWhenLoggedOut: false,
   disablePageAnimation: false,
   offlineNodesLast: false,
+  showFinanceToGuests: false,
+  showPriceExpireToGuests: false,
   icpEnabled: false,
   icpNumber: '',
   icpUrl: 'https://beian.miit.gov.cn/',
@@ -452,6 +458,8 @@ export function adaptThemeOptions(value: unknown): ThemeSettings {
     hideAdminEntryWhenLoggedOut: themeBoolean(options.hideAdminEntryWhenLoggedOut, DEFAULT_THEME_SETTINGS.hideAdminEntryWhenLoggedOut),
     disablePageAnimation: themeBoolean(options.disablePageAnimation, DEFAULT_THEME_SETTINGS.disablePageAnimation),
     offlineNodesLast: themeBoolean(options.offlineNodesLast, DEFAULT_THEME_SETTINGS.offlineNodesLast),
+    showFinanceToGuests: themeBoolean(options.showFinanceToGuests, DEFAULT_THEME_SETTINGS.showFinanceToGuests),
+    showPriceExpireToGuests: themeBoolean(options.showPriceExpireToGuests, DEFAULT_THEME_SETTINGS.showPriceExpireToGuests),
     icpEnabled: themeBoolean(options.icpEnabled, DEFAULT_THEME_SETTINGS.icpEnabled),
     icpNumber: themeString(options.icpNumber, DEFAULT_THEME_SETTINGS.icpNumber),
     icpUrl: themeString(options.icpUrl, DEFAULT_THEME_SETTINGS.icpUrl),

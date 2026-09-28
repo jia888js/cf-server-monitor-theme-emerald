@@ -192,32 +192,48 @@ const metricCards = computed<MetricCard[]>(() => {
   const remainingTime = splitMetricValue(remainingTimeText.value)
   const remainingValue = splitMetricValue(remainingValueText.value)
 
+  /** 财务信息可见性：管理员始终可见，游客看主题开关 */
+  const showFinance = appStore.isLoggedIn || appStore.showFinanceToGuests
+  const showPriceExpire = appStore.isLoggedIn || appStore.showPriceExpireToGuests
+
   return [
-    {
-      label: '节点价格',
-      value: nodePrice.value,
-      unit: nodePrice.unit,
-      icon: 'tabler:cash',
-    },
-    {
-      label: '月均支出',
-      value: monthlyAverageCost.value,
-      unit: monthlyAverageCost.unit,
-      icon: 'tabler:receipt-2',
-    },
-    {
-      label: '剩余时间',
-      value: remainingTime.value,
-      unit: remainingTime.unit,
-      icon: 'tabler:calendar-dollar',
-      valueClass: remainingTimeValueClass.value,
-    },
-    {
-      label: '剩余价值',
-      value: remainingValue.value,
-      unit: remainingValue.unit,
-      icon: 'tabler:coins',
-    },
+    ...(showFinance
+      ? [
+          {
+            label: '节点价格',
+            value: nodePrice.value,
+            unit: nodePrice.unit,
+            icon: 'tabler:cash',
+          },
+          {
+            label: '月均支出',
+            value: monthlyAverageCost.value,
+            unit: monthlyAverageCost.unit,
+            icon: 'tabler:receipt-2',
+          },
+        ]
+      : []),
+    ...(showPriceExpire
+      ? [
+          {
+            label: '剩余时间',
+            value: remainingTime.value,
+            unit: remainingTime.unit,
+            icon: 'tabler:calendar-dollar',
+            valueClass: remainingTimeValueClass.value,
+          },
+        ]
+      : []),
+    ...(showFinance
+      ? [
+          {
+            label: '剩余价值',
+            value: remainingValue.value,
+            unit: remainingValue.unit,
+            icon: 'tabler:coins',
+          },
+        ]
+      : []),
   ]
 })
 

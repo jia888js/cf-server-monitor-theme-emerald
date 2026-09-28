@@ -105,6 +105,14 @@ const useAppStore = defineStore('app', () => {
     return publicSettings.value?.themeSettings.offlineNodesLast ?? false
   })
 
+  const showFinanceToGuests = computed<boolean>(() => {
+    return publicSettings.value?.themeSettings.showFinanceToGuests ?? false
+  })
+
+  const showPriceExpireToGuests = computed<boolean>(() => {
+    return publicSettings.value?.themeSettings.showPriceExpireToGuests ?? false
+  })
+
   // 计算属性：ICP 备案配置
   const icpEnabled = computed<boolean>(() => {
     return publicSettings.value?.themeSettings.icpEnabled ?? false
@@ -263,6 +271,8 @@ const useAppStore = defineStore('app', () => {
     hideAdminEntryWhenLoggedOut,
     disablePageAnimation,
     offlineNodesLast,
+    showFinanceToGuests,
+    showPriceExpireToGuests,
     icpEnabled,
     icpNumber,
     icpUrl,

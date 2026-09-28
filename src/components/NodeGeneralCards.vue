@@ -37,6 +37,14 @@ const metricSwitchTransitionProps = computed(() => ({
 
 const openFinanceCard = ref(false)
 
+/** 财务信息可见性：管理员始终可见，游客看主题开关 */
+const showFinance = computed(() => appStore.isLoggedIn || appStore.showFinanceToGuests)
+
+function onFinanceCardClick(): void {
+  if (showFinance.value)
+    openFinanceCard.value = !openFinanceCard.value
+}
+
 function getMetricSwitchStyle(index: number): Record<string, string> {
   return {
     '--metric-switch-delay': `${index * 35}ms`,
@@ -259,7 +267,7 @@ onMounted(async () => {
           hoverable
           class="group h-full border-none rounded-md transition-all"
           :class="pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs')"
-          content-class="h-full !p-3" @click="openFinanceCard = !openFinanceCard"
+          content-class="h-full !p-3" @click="onFinanceCardClick"
         >
           <div class="flex h-full flex-col justify-between gap-1">
             <div class="flex items-start justify-between">
@@ -275,9 +283,9 @@ onMounted(async () => {
                 :style="getMetricSwitchStyle(2)"
               >
                 <span class="text-md md:text-2xl font-bold leading-none tracking-tight">
-                  {{ formattedRemainingValue.symbol }}{{ formattedRemainingValue.value }}
+                  {{ showFinance ? `${formattedRemainingValue.symbol}${formattedRemainingValue.value}` : '···' }}
                 </span>
-                <span class="block truncate text-[11px] md:text-xs font-medium text-muted-foreground">
+                <span v-if="showFinance" class="block truncate text-[11px] md:text-xs font-medium text-muted-foreground">
                   {{ formattedRemainingValue.currency }}
                 </span>
               </div>
