@@ -152,7 +152,7 @@ function getRowTransitionStyle(index: number): Record<string, string> {
       <!-- 表头 -->
       <div
         class="grid gap-2 rounded-lg p-2"
-        :class="pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/60 backdrop-blur-sm')"
+        :class="pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/30 backdrop-blur-md')"
         :style="gridStyle"
       >
         <div
@@ -176,8 +176,8 @@ function getRowTransitionStyle(index: number): Record<string, string> {
         <div
           v-for="(node, index) in sortedNodes"
           :key="getRowTransitionKey(node)"
-          class="relative flex h-16 cursor-pointer flex-col justify-center rounded-lg px-2 shadow-[0_0_4px,0_0_0_1px] shadow-transparent transition-all bg-background/60 hover:bg-background hover:shadow-emerald-600/10"
-          :class="[pickSurfaceClass('', 'backdrop-blur-sm'), !node.online && '!shadow-red-600/10']"
+          class="relative flex h-16 cursor-pointer flex-col justify-center rounded-lg px-2 shadow-[0_0_4px,0_0_0_1px] shadow-transparent transition-all hover:bg-background hover:shadow-emerald-600/10"
+          :class="[pickSurfaceClass('bg-background/60', 'bg-background/30 backdrop-blur-md'), !node.online && '!shadow-red-600/10']"
           :style="getRowTransitionStyle(index)"
           @click="handleClick(node)"
         >

@@ -1,8 +1,8 @@
 import type { CurrencyCode } from '@/utils/financeHelper'
 import type { Client, NodeStatus, NodeStatusPing, PingRecord, PingWindowPoint, StatusRecord } from '@/utils/rpc'
+import defaultBackgroundImage from '@/assets/bg.jpg'
 import { isSupportedCurrency, normalizedCurrencyMap } from '@/utils/financeHelper'
 import { requestTurnstileToken } from '@/utils/turnstile'
-import defaultBackgroundImage from '@/assets/bg.jpg'
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000
 const MB = 1024 * 1024

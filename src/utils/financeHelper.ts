@@ -173,13 +173,15 @@ export function normalizeCurrency(currency: string | null | undefined): Currency
  * Symbol used when rendering a node's configured price.
  * Prefer the API wire value (e.g. `¥JPY`) so yen is not confused with CNY `¥`.
  */
+const ISO_CURRENCY_CODE_REGEX = /^[A-Z]{3}$/i
+
 export function getCurrencyDisplaySymbol(currency: string | null | undefined): string {
   const raw = String(currency || '¥').trim() || '¥'
   if (raw === '￥')
     return '¥'
 
   // Non-ISO wire symbols from CF Server Monitor — show as returned.
-  if (!/^[A-Za-z]{3}$/.test(raw))
+  if (!ISO_CURRENCY_CODE_REGEX.test(raw))
     return raw
 
   return CURRENCY_SYMBOLS[normalizeCurrency(raw)] ?? raw

@@ -12,20 +12,20 @@ import { useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { getApiAssetUrl } from '@/utils/api'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
+import { lineMap, loadLineInfo } from '@/utils/lineInfo'
 import { formatOfflineTime, getCustomTags, getPriceTags, getRemainingTimeTagClass, getTrafficLevel, getTrafficUsed, getTrafficUsedPercentage, hasRegion, showTrafficProgress } from '@/utils/nodeHelper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
-import { lineMap, loadLineInfo } from '@/utils/lineInfo'
 
 const props = defineProps<{ node: NodeData }>()
-
-// 三网线路数据（中转 Worker 公开接口），加载一次全站共用
-loadLineInfo()
 
 const emit = defineEmits<{
   click: []
   pingClick: [node: NodeData]
 }>()
+
+// 三网线路数据（中转 Worker 公开接口），加载一次全站共用
+loadLineInfo()
 
 const appStore = useAppStore()
 const nodesStore = useNodesStore()
@@ -92,8 +92,8 @@ function openPingDialog() {
 <template>
   <CardX
     hoverable
-    class="node-card h-full w-full cursor-pointer border-none shadow-[0_0_0_1px] shadow-transparent transition-all duration-200 rounded-md bg-background/60 hover:bg-background hover:shadow-emerald-600/10 hover:shadow-[0_0_20px,0_0_0_1px] hover:-translate-y-0.5 hover:z-1"
-    :class="[pickSurfaceClass('', 'backdrop-blur-sm'), !props.node.online && 'shadow-[0_0_0_1px] !shadow-red-600/20']"
+    class="node-card h-full w-full cursor-pointer border-none shadow-[0_0_0_1px] shadow-transparent transition-all duration-200 rounded-md hover:bg-background hover:shadow-emerald-600/10 hover:shadow-[0_0_20px,0_0_0_1px] hover:-translate-y-0.5 hover:z-1"
+    :class="[pickSurfaceClass('bg-background/60', 'bg-background/30 backdrop-blur-md'), !props.node.online && 'shadow-[0_0_0_1px] !shadow-red-600/20']"
     @click="emit('click')"
   >
     <template #header>

@@ -200,7 +200,7 @@ onMounted(async () => {
         hoverable
         class="group h-full border-none rounded-md transition-all"
         :class="[
-          pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs'),
+          pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/30 hover:bg-background backdrop-blur-sm'),
           showVisualPanel ? 'col-span-4 row-span-1 col-start-1 row-start-1' : 'col-span-1 row-start-1 col-start-1 min-h-18 md:min-h-24 md:row-start-1 md:col-start-1',
         ]"
         content-class="h-full !p-3"
@@ -232,7 +232,7 @@ onMounted(async () => {
         hoverable
         class="group h-full border-none rounded-md transition-all"
         :class="[
-          pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs'),
+          pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/30 hover:bg-background backdrop-blur-sm'),
           showVisualPanel ? 'col-span-4 row-span-1 col-start-1 row-start-2' : 'col-span-1 row-start-2 col-start-1 min-h-18 md:min-h-24 md:row-start-1 md:col-start-2',
         ]"
         content-class="h-full !p-3"
@@ -266,7 +266,7 @@ onMounted(async () => {
         <CardX
           hoverable
           class="group h-full border-none rounded-md transition-all"
-          :class="pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs')"
+          :class="pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/30 hover:bg-background backdrop-blur-sm')"
           content-class="h-full !p-3" @click="onFinanceCardClick"
         >
           <div class="flex h-full flex-col justify-between gap-1">
@@ -296,7 +296,7 @@ onMounted(async () => {
           hoverable
           class="absolute top-0 left-1/2 z-20 h-42 w-[260%] max-w-88 -translate-x-[50%] -translate-y-[25%] rounded-md border-none shadow-[0_0_20px,0_0_0_1px] shadow-emerald-600/10 transition-all"
           :class="[
-            pickSurfaceClass('bg-background', 'bg-background/50 backdrop-blur-lg'),
+            pickSurfaceClass('bg-background', 'bg-background/30 backdrop-blur-lg'),
             openFinanceCard ? 'opacity-100 scale-100  -translate-y-[5%]' : 'opacity-0 pointer-events-none scale-50',
           ]"
           content-class="h-full !p-4" @click="openFinanceCard = false"
@@ -364,7 +364,7 @@ onMounted(async () => {
         hoverable
         class="group h-full border-none rounded-md transition-all"
         :class="[
-          pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs'),
+          pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/30 hover:bg-background backdrop-blur-sm'),
           showVisualPanel ? 'col-span-4 row-span-1 col-start-5 row-start-2' : 'col-span-1 row-start-2 col-start-2 min-h-18 md:min-h-24 md:row-start-1 md:col-start-4',
         ]"
         content-class="h-full !p-3"
@@ -403,7 +403,7 @@ onMounted(async () => {
         hoverable
         class="group h-full border-none rounded-md transition-all"
         :class="[
-          pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs'),
+          pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/30 hover:bg-background backdrop-blur-sm'),
           showVisualPanel ? 'col-span-4 row-span-1 col-start-9 row-start-1' : 'col-span-1 row-start-1 col-start-3 min-h-18 md:min-h-24 md:row-start-1 md:col-start-5',
         ]"
         content-class="h-full !p-3"
@@ -432,7 +432,7 @@ onMounted(async () => {
         hoverable
         class="group h-full border-none rounded-md transition-all"
         :class="[
-          pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs'),
+          pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/30 hover:bg-background backdrop-blur-sm'),
           showVisualPanel ? 'col-span-4 row-span-1 col-start-9 row-start-2' : 'col-span-1 row-start-2 col-start-3 min-h-18 md:min-h-24 md:row-start-1 md:col-start-6',
         ]"
         content-class="h-full !p-3"
