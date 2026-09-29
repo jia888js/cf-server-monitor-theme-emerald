@@ -245,7 +245,7 @@ function rebuildSceneObjects() {
 // ---- 信号流星：节点之间随机互发，无固定顺序、无固定间隔 ----
 // 造型：发光头部 + 一条连续的蝌蚪拖尾（头宽尾窄、头亮尾暗）
 interface SignalPacket {
-  curve: THREE.QuadraticBezierCurve3
+  curve: THREE.CatmullRomCurve3
   curveLen: number
   elapsed: number
   duration: number
@@ -258,7 +258,7 @@ interface SignalPacket {
 
 const RIBBON_SEGMENTS = 18
 const TAIL_WORLD_LEN = 0.3
-const RIBBON_MAX_WIDTH = 0.02
+const RIBBON_MAX_WIDTH = 0.012
 const MAX_PACKETS = 8
 let glowTex: THREE.CanvasTexture | null = null
 let signalPackets: SignalPacket[] = []
@@ -330,6 +330,30 @@ function buildRibbonGeometry(): { geo: THREE.BufferGeometry, posAttr: THREE.Buff
   return { geo, posAttr, colAttr }
 }
 
+// 贴地飞行曲线：沿大圆方向插值，高度几乎贴着地表，中段只微微抬起
+function groundHuggingCurve(from: THREE.Vector3, to: THREE.Vector3, dist: number): THREE.CatmullRomCurve3 {
+  const N = 32
+  const bump = 0.015 + dist * 0.02
+  const angle = from.angleTo(to)
+  const sinA = Math.sin(angle)
+  const pts: THREE.Vector3[] = []
+  for (let i = 0; i <= N; i++) {
+    const t = i / N
+    const p = new THREE.Vector3()
+    if (sinA > 1e-6) {
+      const wa = Math.sin((1 - t) * angle) / sinA
+      const wb = Math.sin(t * angle) / sinA
+      p.copy(from).multiplyScalar(wa).addScaledVector(to, wb).normalize()
+    }
+    else {
+      p.copy(from).normalize()
+    }
+    p.multiplyScalar(1.016 + 0.012 + bump * Math.sin(Math.PI * t))
+    pts.push(p)
+  }
+  return new THREE.CatmullRomCurve3(pts)
+}
+
 function spawnSignal() {
   const group = arcsGroup
   if (!group || !glowTex)
@@ -353,11 +377,9 @@ function spawnSignal() {
   const dist = from.distanceTo(to)
   if (dist < 0.05)
     return
-  const lift = 1.016 + 0.07 + dist * 0.32
-  const mid = from.clone().add(to).multiplyScalar(0.5).normalize().multiplyScalar(lift)
-  const curve = new THREE.QuadraticBezierCurve3(from, mid, to)
+  const curve = groundHuggingCurve(from, to, dist)
 
-  const head = makeGlowSprite(0xEAF7FF, 0.06)
+  const head = makeGlowSprite(0xEAF7FF, 0.05)
   const { geo, posAttr, colAttr } = buildRibbonGeometry()
   const ribbonMat = new THREE.MeshBasicMaterial({
     vertexColors: true,
