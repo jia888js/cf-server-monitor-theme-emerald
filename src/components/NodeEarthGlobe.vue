@@ -258,8 +258,8 @@ interface SignalPacket {
 
 const RIBBON_SEGMENTS = 18
 const TAIL_WORLD_LEN = 0.3
-const RIBBON_MAX_WIDTH = 0.012
-const MAX_PACKETS = 8
+const RIBBON_MAX_WIDTH = 0.007
+const MAX_PACKETS = 14
 let glowTex: THREE.CanvasTexture | null = null
 let signalPackets: SignalPacket[] = []
 let nextSignalAt = 0
@@ -490,7 +490,7 @@ function updateSignals(now: number) {
   // 随机发射：无固定顺序、无固定间隔
   if (now >= nextSignalAt && signalPackets.length < MAX_PACKETS) {
     spawnSignal()
-    nextSignalAt = now + 350 + Math.random() * 1500
+    nextSignalAt = now + 150 + Math.random() * 650
   }
 
   for (let i = signalPackets.length - 1; i >= 0; i--) {
