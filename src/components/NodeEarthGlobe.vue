@@ -259,7 +259,7 @@ interface SignalPacket {
 const RIBBON_SEGMENTS = 18
 const TAIL_WORLD_LEN = 0.3
 const RIBBON_MAX_WIDTH = 0.007
-const MAX_PACKETS = 14
+// 不限制同时存在的信号数量：发射间隔足够短，自然形成多国并发
 let glowTex: THREE.CanvasTexture | null = null
 let signalPackets: SignalPacket[] = []
 let nextSignalAt = 0
@@ -486,11 +486,12 @@ function updateSignals(now: number) {
     return
   const dt = lastSignalFrameTime > 0 ? Math.min(now - lastSignalFrameTime, 50) : 16
   lastSignalFrameTime = now
+  const lagging = dt >= 50
 
-  // 随机发射：无固定顺序、无固定间隔
-  if (now >= nextSignalAt && signalPackets.length < MAX_PACKETS) {
+  // 随机发射：无固定顺序、无固定间隔、无数量上限；掉帧时暂停发射自我保护
+  if (!lagging && now >= nextSignalAt) {
     spawnSignal()
-    nextSignalAt = now + 150 + Math.random() * 650
+    nextSignalAt = now + 40 + Math.random() * 100
   }
 
   for (let i = signalPackets.length - 1; i >= 0; i--) {
