@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
 import type { NodeData } from '@/stores/nodes'
-import { Icon } from '@iconify/vue'
 import {
   useDocumentVisibility,
   useElementSize,
@@ -16,7 +15,6 @@ import { useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { getApiAssetUrl } from '@/utils/api'
 import { getCoordByCode, getCountryCodeFromRegion } from '@/utils/geoHelper'
-import { formatBytesPerSecondSplit } from '@/utils/helper'
 
 const props = defineProps<{
   nodes?: NodeData[]
@@ -90,11 +88,6 @@ function clusterKey(c: RegionCluster) {
   return `${c.code}:${c.servers}:${c.onlineServers}`
 }
 
-interface RegionRate {
-  up: number
-  down: number
-}
-
 // 节点按地区聚合
 const regionClusters = computed<RegionCluster[]>(() => {
   const map = new Map<string, RegionCluster>()
@@ -116,26 +109,6 @@ const regionClusters = computed<RegionCluster[]>(() => {
       entry.onlineServers += 1
   }
   return Array.from(map.values()).sort((a, b) => b.servers - a.servers)
-})
-
-const regionRates = computed<Map<string, RegionRate>>(() => {
-  const map = new Map<string, RegionRate>()
-  // 始终使用 nodesStore.nodes 绕过 earthNodes 60s 节流，使速率实时更新
-  for (const node of nodesStore.nodes) {
-    if (!node.online)
-      continue
-    const code = getCountryCodeFromRegion(node.region)
-    if (!code)
-      continue
-    let entry = map.get(code)
-    if (!entry) {
-      entry = { up: 0, down: 0 }
-      map.set(code, entry)
-    }
-    entry.up += node.net_out || 0
-    entry.down += node.net_in || 0
-  }
-  return map
 })
 
 const clusterOverlayEls = new Map<string, HTMLDivElement>()
@@ -797,15 +770,6 @@ function onPointerUp(e: PointerEvent) {
 const totalServers = computed(() => displayNodes.value.length)
 const onlineServers = computed(() => displayNodes.value.filter(node => node.online).length)
 const offlineServers = computed(() => totalServers.value - onlineServers.value)
-
-function rateFor(code: string): RegionRate {
-  return regionRates.value.get(code) ?? { up: 0, down: 0 }
-}
-
-function formatRate(bytesPerSec: number): string {
-  const { value, unit } = formatBytesPerSecondSplit(bytesPerSec, appStore.byteDecimals)
-  return `${value} ${unit}`
-}
 </script>
 
 <template>
@@ -830,14 +794,6 @@ function formatRate(bytesPerSec: number): string {
           :src="getApiAssetUrl(`flags/${cluster.code.toLowerCase()}.svg`)" :alt="cluster.code"
           class="size-4 block absolute -bottom-2 -left-2 z-1 drop-shadow-[0_0_2px_rgba(0,0,0,0.1)]"
         >
-        <div class="relative z-2 bg-background/60 rounded py-0.5 px-1 text-xs zoom-80 items-start justify-center text-nowrap">
-          <div class="text-green-600 flex flex-row items-center gap-0.5">
-            <Icon icon="tabler:chevron-up" width="12" height="12" /> {{ formatRate(rateFor(cluster.code).up) }}
-          </div>
-          <div class="text-blue-600 flex flex-row items-center gap-0.5">
-            <Icon icon="tabler:chevron-down" width="12" height="12" /> {{ formatRate(rateFor(cluster.code).down) }}
-          </div>
-        </div>
       </div>
     </template>
 
