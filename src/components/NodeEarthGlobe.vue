@@ -788,11 +788,11 @@ const offlineServers = computed(() => totalServers.value - onlineServers.value)
     <template v-for="cluster in regionClusters" :key="cluster.code">
       <div
         :ref="bindClusterOverlayRef(cluster.code)"
-        class="absolute -top-7.5 left-0 pointer-events-none rounded backdrop-blur transition-[opacity,filter] duration-500"
+        class="absolute -top-7.5 left-0 pointer-events-none transition-[opacity,filter] duration-500"
       >
         <img
           :src="getApiAssetUrl(`flags/${cluster.code.toLowerCase()}.svg`)" :alt="cluster.code"
-          class="size-4 block absolute -bottom-2 -left-2 z-1 drop-shadow-[0_0_2px_rgba(0,0,0,0.1)]"
+          class="size-6 block rounded-md bg-background/60 backdrop-blur p-1 shadow-md"
         >
       </div>
     </template>
