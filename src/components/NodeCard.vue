@@ -92,16 +92,28 @@ function openPingDialog() {
 <template>
   <CardX
     hoverable
-    class="node-card h-full w-full cursor-pointer border-none shadow-[0_0_0_1px] shadow-transparent transition-all duration-200 rounded-md hover:bg-background hover:shadow-emerald-600/10 hover:shadow-[0_0_20px,0_0_0_1px] hover:-translate-y-0.5 hover:z-1"
+    class="node-card h-full w-full cursor-pointer border-none shadow-[0_0_0_1px] shadow-transparent transition-all duration-200 rounded-md hover:bg-background hover:shadow-emerald-600/10 hover:shadow-[0_0_20px,0_0_0_1px] dark:hover:shadow-[0_0_28px_rgba(56,189,248,0.16)] hover:-translate-y-0.5 hover:z-1"
     :class="[pickSurfaceClass('bg-background/60', 'bg-background/15 backdrop-blur-lg'), !props.node.online && 'shadow-[0_0_0_1px] !shadow-red-600/20']"
     @click="emit('click')"
   >
     <template #header>
       <div class="flex gap-2 min-w-0 items-center">
-        <div class="size-2 rounded-full relative" :class="[props.node.online ? 'bg-emerald-600' : 'bg-red-600']">
+        <!-- 星球状态灯：土星环 + 大气辉光 -->
+        <div class="relative size-4 shrink-0" aria-hidden="true">
+          <svg class="absolute inset-0 overflow-visible" viewBox="0 0 16 16" fill="none">
+            <ellipse
+              cx="8" cy="8" rx="7.2" ry="2.9" transform="rotate(-18 8 8)"
+              :stroke="props.node.online ? 'rgba(125,211,252,.55)' : 'rgba(252,165,165,.55)'"
+              stroke-width="0.9"
+            />
+          </svg>
           <div
-            class="animate-ping absolute inset-0 rounded-full opacity-50"
-            :class="[props.node.online ? 'bg-emerald-600' : 'bg-red-600']"
+            class="planet absolute inset-[4px] rounded-full"
+            :class="[props.node.online ? 'planet-online' : 'planet-offline']"
+          />
+          <div
+            class="animate-ping absolute inset-[4px] rounded-full opacity-40"
+            :class="[props.node.online ? 'bg-sky-400' : 'bg-red-400']"
           />
         </div>
         <div class="text-md font-bold flex-1 min-w-0 truncate">
@@ -386,5 +398,58 @@ function openPingDialog() {
 .node-card {
   position: relative;
   overflow: hidden;
+}
+
+/* 深空星野（仅深色模式，盖在玻璃底之上、内容之下） */
+.node-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.dark .node-card::before {
+  opacity: 1;
+  background:
+    radial-gradient(1px 1px at 11% 20%, rgba(255, 255, 255, 0.6) 50%, transparent 51%),
+    radial-gradient(1px 1px at 82% 12%, rgba(255, 255, 255, 0.4) 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 64% 82%, rgba(186, 230, 253, 0.5) 50%, transparent 51%),
+    radial-gradient(1px 1px at 34% 72%, rgba(255, 255, 255, 0.35) 50%, transparent 51%),
+    radial-gradient(1px 1px at 90% 58%, rgba(255, 255, 255, 0.45) 50%, transparent 51%),
+    radial-gradient(1px 1px at 48% 8%, rgba(255, 255, 255, 0.3) 50%, transparent 51%),
+    radial-gradient(130% 100% at 50% -20%, rgba(37, 99, 235, 0.16), transparent 55%);
+}
+
+/* 大气层顶光 */
+.node-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 2px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.55), transparent);
+  opacity: 0.55;
+}
+.dark .node-card::after {
+  opacity: 0.9;
+}
+
+/* 星球状态灯 */
+.planet-online {
+  background: radial-gradient(circle at 32% 30%, #e0f2fe 0%, #38bdf8 38%, #1d4ed8 72%, #0a1740 100%);
+  box-shadow:
+    0 0 5px 1px rgba(56, 189, 248, 0.85),
+    0 0 12px 3px rgba(56, 189, 248, 0.28);
+}
+.planet-offline {
+  background: radial-gradient(circle at 32% 30%, #fee2e2 0%, #f87171 42%, #b91c1c 74%, #3f0d0d 100%);
+  box-shadow:
+    0 0 5px 1px rgba(248, 113, 113, 0.85),
+    0 0 12px 3px rgba(248, 113, 113, 0.28);
 }
 </style>
