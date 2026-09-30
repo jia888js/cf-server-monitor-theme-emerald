@@ -15,6 +15,7 @@ import { lineMap, loadLineInfo } from '@/utils/lineInfo'
 import { formatOfflineTime, getCustomTags, getPriceTags, getRemainingTimeTagClass, getTrafficLevel, getTrafficUsed, getTrafficUsedPercentage, hasRegion, showTrafficProgress } from '@/utils/nodeHelper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
+import satBorders from '../assets/borders.json'
 
 const props = defineProps<{ node: NodeData }>()
 const emit = defineEmits<{
@@ -33,6 +34,12 @@ const countryName = computed(() => {
   if (!hasRegion(props.node.region))
     return ''
   return getRegionDisplayName(props.node.region)
+})
+// 本国国境线（SVG 路径，512x512 全景图坐标）
+const borderPath = computed(() => {
+  if (!hasRegion(props.node.region))
+    return ''
+  return (satBorders as Record<string, string>)[getRegionCode(props.node.region).toLowerCase()] || ''
 })
 
 // 三网线路数据（中转 Worker 公开接口），加载一次全站共用
@@ -110,6 +117,9 @@ function openPingDialog() {
     <div class="viewport" :class="!props.node.online && 'is-off'">
       <div class="vp-map" :style="satUrl ? { backgroundImage: `url(${satUrl})` } : undefined" />
       <div class="vp-shade" />
+      <svg v-if="borderPath" class="vp-border" viewBox="0 0 512 512" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <path :d="borderPath" />
+      </svg>
       <div class="vp-top">
         <div class="min-w-0">
           <div class="vp-country">
@@ -341,7 +351,7 @@ function openPingDialog() {
 /* ── 卫星地图（地图 App 风） ── */
 .viewport {
   position: relative;
-  height: 104px;
+  height: 122px;
   flex-shrink: 0;
   overflow: hidden;
   background: #0a1628;
@@ -369,6 +379,21 @@ function openPingDialog() {
     rgba(0, 0, 0, 0.5)
   );
   pointer-events: none;
+}
+/* 国境线：地图 App 式描边 */
+.vp-border {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.vp-border path {
+  fill: rgba(125, 211, 252, 0.08);
+  stroke: #bae6fd;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 5px rgba(125, 211, 252, 0.9));
 }
 .vp-top {
   position: absolute;
