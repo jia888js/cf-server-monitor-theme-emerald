@@ -74,6 +74,14 @@ const formattedTrafficUp = computed(() => formatBytesSplit(totalTraffic.value.up
 const formattedTrafficDown = computed(() => formatBytesSplit(totalTraffic.value.down, appStore.byteDecimals))
 const totalTrafficTooltip = computed(() => formatBytesSplit(totalTraffic.value.up + totalTraffic.value.down, appStore.byteDecimals))
 
+const totalTrafficLimit = computed(() => {
+  return summaryNodes.value.reduce((sum, node) => sum + (node.traffic_limit > 0 ? node.traffic_limit : 0), 0)
+})
+const unlimitedTrafficCount = computed(() => {
+  return summaryNodes.value.filter(node => !(node.traffic_limit > 0)).length
+})
+const formattedTrafficLimit = computed(() => formatBytesSplit(totalTrafficLimit.value, appStore.byteDecimals))
+
 const formattedSpeedUp = computed(() => formatBytesPerSecondSplit(totalSpeed.value.up, appStore.byteDecimals))
 const formattedSpeedDown = computed(() => formatBytesPerSecondSplit(totalSpeed.value.down, appStore.byteDecimals))
 
@@ -377,25 +385,30 @@ onMounted(async () => {
               class="text-slate-500/20 group-hover:text-slate-500 transition-colors"
             />
           </div>
-          <DataTooltip
-            as="span" placement="top"
-            :content="`↑ ${formattedTrafficUp.value} ${formattedTrafficUp.unit}\n↓ ${formattedTrafficDown.value} ${formattedTrafficDown.unit}`"
-            class="min-w-0" content-class="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"
-          >
-            <Transition v-bind="metricSwitchTransitionProps">
-              <div
-                :key="`traffic-${summaryTransitionKey}`" class="flex items-baseline gap-1"
-                :style="getMetricSwitchStyle(3)"
-              >
-                <span class="inline-block text-md md:text-2xl font-bold leading-none tracking-tight">
-                  {{ totalTrafficTooltip.value }}
-                </span>
-                <span class="inline-block text-[11px] md:text-xs font-medium text-muted-foreground">
-                  {{ totalTrafficTooltip.unit }}
-                </span>
-              </div>
-            </Transition>
-          </DataTooltip>
+          <div class="min-w-0">
+            <DataTooltip
+              as="span" placement="top"
+              :content="`↑ ${formattedTrafficUp.value} ${formattedTrafficUp.unit}\n↓ ${formattedTrafficDown.value} ${formattedTrafficDown.unit}`"
+              class="min-w-0" content-class="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"
+            >
+              <Transition v-bind="metricSwitchTransitionProps">
+                <div
+                  :key="`traffic-${summaryTransitionKey}`" class="flex items-baseline gap-1"
+                  :style="getMetricSwitchStyle(3)"
+                >
+                  <span class="inline-block text-md md:text-2xl font-bold leading-none tracking-tight">
+                    {{ totalTrafficTooltip.value }}
+                  </span>
+                  <span class="inline-block text-[11px] md:text-xs font-medium text-muted-foreground">
+                    {{ totalTrafficTooltip.unit }}
+                  </span>
+                </div>
+              </Transition>
+            </DataTooltip>
+            <div class="text-[11px] text-muted-foreground leading-tight mt-0.5">
+              总 {{ formattedTrafficLimit.value }} {{ formattedTrafficLimit.unit }} · {{ unlimitedTrafficCount }} 台无限
+            </div>
+          </div>
         </div>
       </CardX>
 
