@@ -99,20 +99,20 @@ function openPingDialog() {
     <template #header>
       <div class="flex gap-2 min-w-0 items-center">
         <!-- 星球状态灯：土星环 + 大气辉光 -->
-        <div class="relative size-4 shrink-0" aria-hidden="true">
-          <svg class="absolute inset-0 overflow-visible" viewBox="0 0 16 16" fill="none">
+        <div class="relative size-5 shrink-0" aria-hidden="true">
+          <svg class="absolute inset-0 overflow-visible" viewBox="0 0 20 20" fill="none">
             <ellipse
-              cx="8" cy="8" rx="7.2" ry="2.9" transform="rotate(-18 8 8)"
-              :stroke="props.node.online ? 'rgba(125,211,252,.55)' : 'rgba(252,165,165,.55)'"
-              stroke-width="0.9"
+              cx="10" cy="10" rx="9" ry="3.6" transform="rotate(-18 10 10)"
+              :stroke="props.node.online ? 'rgba(125,211,252,.6)' : 'rgba(252,165,165,.6)'"
+              stroke-width="1"
             />
           </svg>
           <div
-            class="planet absolute inset-[4px] rounded-full"
+            class="planet absolute inset-[5px] rounded-full"
             :class="[props.node.online ? 'planet-online' : 'planet-offline']"
           />
           <div
-            class="animate-ping absolute inset-[4px] rounded-full opacity-40"
+            class="animate-ping absolute inset-[5px] rounded-full opacity-40"
             :class="[props.node.online ? 'bg-sky-400' : 'bg-red-400']"
           />
         </div>
@@ -400,26 +400,28 @@ function openPingDialog() {
   overflow: hidden;
 }
 
-/* 深空星野（仅深色模式，盖在玻璃底之上、内容之下） */
+/* 卡片底：浅色是天空渐变，深色是深空星野（盖在玻璃底之上、内容之下） */
 .node-card::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s;
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(186, 230, 253, 0.4), rgba(186, 230, 253, 0) 46%);
 }
 .dark .node-card::before {
-  opacity: 1;
   background:
-    radial-gradient(1px 1px at 11% 20%, rgba(255, 255, 255, 0.6) 50%, transparent 51%),
-    radial-gradient(1px 1px at 82% 12%, rgba(255, 255, 255, 0.4) 50%, transparent 51%),
-    radial-gradient(1.4px 1.4px at 64% 82%, rgba(186, 230, 253, 0.5) 50%, transparent 51%),
-    radial-gradient(1px 1px at 34% 72%, rgba(255, 255, 255, 0.35) 50%, transparent 51%),
-    radial-gradient(1px 1px at 90% 58%, rgba(255, 255, 255, 0.45) 50%, transparent 51%),
-    radial-gradient(1px 1px at 48% 8%, rgba(255, 255, 255, 0.3) 50%, transparent 51%),
-    radial-gradient(130% 100% at 50% -20%, rgba(37, 99, 235, 0.16), transparent 55%);
+    radial-gradient(1px 1px at 11% 20%, rgba(255, 255, 255, 0.65) 50%, transparent 51%),
+    radial-gradient(1px 1px at 82% 12%, rgba(255, 255, 255, 0.45) 50%, transparent 51%),
+    radial-gradient(1.6px 1.6px at 64% 82%, rgba(186, 230, 253, 0.55) 50%, transparent 51%),
+    radial-gradient(1px 1px at 34% 72%, rgba(255, 255, 255, 0.4) 50%, transparent 51%),
+    radial-gradient(1px 1px at 90% 58%, rgba(255, 255, 255, 0.5) 50%, transparent 51%),
+    radial-gradient(1px 1px at 48% 8%, rgba(255, 255, 255, 0.35) 50%, transparent 51%),
+    radial-gradient(1px 1px at 22% 48%, rgba(216, 180, 254, 0.5) 50%, transparent 51%),
+    radial-gradient(120% 90% at 85% 110%, rgba(124, 58, 237, 0.14), transparent 55%),
+    radial-gradient(130% 100% at 50% -20%, rgba(37, 99, 235, 0.2), transparent 55%),
+    linear-gradient(180deg, rgba(10, 18, 48, 0.35), rgba(4, 8, 24, 0.5));
 }
 
 /* 大气层顶光 */
