@@ -77,9 +77,6 @@ const totalTrafficTooltip = computed(() => formatBytesSplit(totalTraffic.value.u
 const totalTrafficLimit = computed(() => {
   return summaryNodes.value.reduce((sum, node) => sum + (node.traffic_limit > 0 ? node.traffic_limit : 0), 0)
 })
-const unlimitedTrafficCount = computed(() => {
-  return summaryNodes.value.filter(node => !(node.traffic_limit > 0)).length
-})
 const formattedTrafficLimit = computed(() => formatBytesSplit(totalTrafficLimit.value, appStore.byteDecimals))
 
 const formattedSpeedUp = computed(() => formatBytesPerSecondSplit(totalSpeed.value.up, appStore.byteDecimals))
@@ -403,9 +400,6 @@ onMounted(async () => {
             </DataTooltip>
             <div class="text-[13px] font-bold text-muted-foreground leading-snug whitespace-nowrap">
               全部：{{ formattedTrafficLimit.value }} {{ formattedTrafficLimit.unit }}
-            </div>
-            <div class="text-[13px] font-bold text-muted-foreground leading-snug whitespace-nowrap">
-              无限：{{ unlimitedTrafficCount }}台
             </div>
           </div>
         </div>
