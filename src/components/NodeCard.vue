@@ -92,8 +92,9 @@ function openPingDialog() {
 <template>
   <CardX
     hoverable
-    class="node-card h-full w-full cursor-pointer border-none shadow-[0_0_0_1px] shadow-transparent transition-all duration-200 rounded-md hover:bg-background hover:shadow-emerald-600/10 hover:shadow-[0_0_20px,0_0_0_1px] dark:hover:shadow-[0_0_28px_rgba(56,189,248,0.16)] hover:-translate-y-0.5 hover:z-1"
-    :class="[pickSurfaceClass('bg-background/60', 'bg-background/15 backdrop-blur-lg'), !props.node.online && 'shadow-[0_0_0_1px] !shadow-red-600/20']"
+    class="node-card h-full w-full cursor-pointer border-none transition-all duration-200 hover:bg-background hover:-translate-y-0.5 hover:z-1"
+    header-class="deck-header"
+    :class="[pickSurfaceClass('bg-background/60', 'bg-background/15 backdrop-blur-lg'), !props.node.online && 'console-offline']"
     @click="emit('click')"
   >
     <template #header>
@@ -395,9 +396,14 @@ function openPingDialog() {
 </template>
 
 <style scoped>
+/* 控制台造型：切角外形 */
 .node-card {
   position: relative;
   overflow: hidden;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+.node-card:hover {
+  filter: drop-shadow(0 8px 20px rgba(56, 189, 248, 0.22));
 }
 
 /* 卡片底：浅色是天空渐变，深色是深空星野（盖在玻璃底之上、内容之下） */
@@ -405,7 +411,6 @@ function openPingDialog() {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: inherit;
   pointer-events: none;
   opacity: 1;
   background: linear-gradient(180deg, rgba(186, 230, 253, 0.4), rgba(186, 230, 253, 0) 46%);
@@ -424,21 +429,27 @@ function openPingDialog() {
     linear-gradient(180deg, rgba(10, 18, 48, 0.35), rgba(4, 8, 24, 0.5));
 }
 
-/* 大气层顶光 */
+/* 舷窗框：跟随切角形状的发光边缘 */
 .node-card::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 8%;
-  right: 8%;
-  height: 2px;
-  border-radius: 9999px;
+  inset: 0;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.3);
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.1), transparent 26%);
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.55), transparent);
-  opacity: 0.55;
 }
 .dark .node-card::after {
-  opacity: 0.9;
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.38);
+}
+.node-card.console-offline::after {
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.42);
+}
+
+/* 指挥舱 header：舱体线 */
+.node-card :deep(.deck-header) {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.07), transparent);
+  border-bottom: 1px solid rgba(125, 211, 252, 0.16);
 }
 
 /* 星球状态灯 */
