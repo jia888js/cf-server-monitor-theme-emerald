@@ -29,6 +29,11 @@ const satUrl = computed(() => {
   const code = getRegionCode(props.node.region).toLowerCase()
   return satImages[`../assets/sat/${code}.jpg`] || ''
 })
+const countryName = computed(() => {
+  if (!hasRegion(props.node.region))
+    return ''
+  return getRegionDisplayName(props.node.region)
+})
 
 // 三网线路数据（中转 Worker 公开接口），加载一次全站共用
 loadLineInfo()
@@ -101,16 +106,18 @@ function openPingDialog() {
     :class="[pickSurfaceClass('bg-background/60', 'bg-background/15 backdrop-blur-lg')]"
     @click="emit('click')"
   >
-    <!-- ═══ 轨道视窗 ═══ -->
-    <div class="viewport">
-      <div class="vp-stars" />
-      <div
-        class="vp-planet" :class="props.node.online ? 'vp-online' : 'vp-offline'"
-        :style="satUrl ? { backgroundImage: `url(${satUrl})` } : undefined"
-      />
+    <!-- ═══ 卫星地图 ═══ -->
+    <div class="viewport" :class="!props.node.online && 'is-off'">
+      <div class="vp-map" :style="satUrl ? { backgroundImage: `url(${satUrl})` } : undefined" />
+      <div class="vp-shade" />
       <div class="vp-top">
-        <div class="vp-desig">
-          {{ props.node.name }}
+        <div class="min-w-0">
+          <div class="vp-country">
+            {{ countryName }}
+          </div>
+          <div class="vp-desig">
+            {{ props.node.name }}
+          </div>
         </div>
         <div class="vp-patches">
           <img :src="getOSImage(props.node.os, props.node.source_index)" :alt="getOSName(props.node.os)" class="size-4 drop-shadow">
@@ -331,68 +338,37 @@ function openPingDialog() {
   filter: drop-shadow(0 10px 24px rgba(56, 189, 248, 0.25));
 }
 
-/* ── 轨道视窗：永远是深空 ── */
+/* ── 卫星地图（地图 App 风） ── */
 .viewport {
   position: relative;
-  height: 96px;
+  height: 104px;
   flex-shrink: 0;
   overflow: hidden;
-  background: #040814;
+  background: #0a1628;
   border-bottom: 1px solid rgba(125, 211, 252, 0.18);
 }
-.vp-stars {
+.vp-map {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(1px 1px at 12% 24%, rgba(255, 255, 255, 0.7) 50%, transparent 51%),
-    radial-gradient(1px 1px at 78% 14%, rgba(255, 255, 255, 0.45) 50%, transparent 51%),
-    radial-gradient(1.5px 1.5px at 58% 66%, rgba(186, 230, 253, 0.6) 50%, transparent 51%),
-    radial-gradient(1px 1px at 32% 78%, rgba(255, 255, 255, 0.4) 50%, transparent 51%),
-    radial-gradient(1px 1px at 90% 52%, rgba(255, 255, 255, 0.5) 50%, transparent 51%),
-    radial-gradient(1px 1px at 44% 10%, rgba(255, 255, 255, 0.35) 50%, transparent 51%),
-    radial-gradient(1px 1px at 24% 52%, rgba(216, 180, 254, 0.55) 50%, transparent 51%),
-    radial-gradient(120% 90% at 85% 115%, rgba(124, 58, 237, 0.16), transparent 55%),
-    radial-gradient(140% 110% at 50% -30%, rgba(37, 99, 235, 0.22), transparent 55%);
-}
-.vp-planet {
-  position: absolute;
-  width: 170px;
-  height: 170px;
-  left: 50%;
-  bottom: -118px;
-  transform: translateX(-50%);
-  border-radius: 9999px;
   background-size: cover;
   background-position: center;
-  overflow: hidden;
+  transition: filter 0.3s;
 }
-/* 球体明暗 + 氛围罩（盖在卫星图/渐变之上） */
-.vp-planet::before {
-  content: '';
+.viewport.is-off .vp-map {
+  filter: grayscale(0.65) brightness(0.62);
+}
+/* 地图 App 式压暗，保证文字可读 */
+.vp-shade {
   position: absolute;
   inset: 0;
-  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.42),
+    rgba(0, 0, 0, 0.06) 42%,
+    rgba(0, 0, 0, 0.08) 62%,
+    rgba(0, 0, 0, 0.5)
+  );
   pointer-events: none;
-}
-.vp-online {
-  background: radial-gradient(circle at 50% 28%, #8fd8ff 0%, #38bdf8 30%, #1e40af 58%, #060d28 82%);
-  box-shadow: 0 -6px 42px 8px rgba(56, 189, 248, 0.4);
-}
-.vp-online::before {
-  background:
-    radial-gradient(circle at 50% 18%, rgba(186, 230, 253, 0.28), transparent 46%),
-    linear-gradient(180deg, transparent 52%, rgba(2, 6, 23, 0.6) 100%);
-  box-shadow: inset 0 -16px 36px rgba(0, 0, 0, 0.5);
-}
-.vp-offline {
-  background: radial-gradient(circle at 50% 28%, #fca5a5 0%, #ef4444 32%, #7f1d1d 62%, #1c0606 85%);
-  box-shadow: 0 -6px 42px 8px rgba(248, 113, 113, 0.3);
-}
-.vp-offline::before {
-  background:
-    linear-gradient(180deg, rgba(127, 29, 29, 0.28), rgba(69, 10, 10, 0.62)),
-    radial-gradient(circle at 50% 18%, rgba(252, 165, 165, 0.12), transparent 46%);
-  box-shadow: inset 0 -16px 36px rgba(0, 0, 0, 0.5);
 }
 .vp-top {
   position: absolute;
@@ -405,16 +381,30 @@ function openPingDialog() {
   gap: 8px;
   padding: 10px 12px;
 }
-.vp-desig {
+/* 地图 App 式地名标注 */
+.vp-country {
   color: #fff;
   font-weight: 800;
-  font-size: 15px;
-  letter-spacing: 0.02em;
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85);
+  font-size: 19px;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  text-shadow:
+    0 1px 10px rgba(0, 0, 0, 0.9),
+    0 0 3px rgba(0, 0, 0, 0.9);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
+}
+.vp-desig {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
 }
 .vp-patches {
   display: flex;
