@@ -226,10 +226,10 @@ onMounted(async () => {
               :key="`memory-${summaryTransitionKey}`" class="min-w-0"
               :style="getMetricSwitchStyle(0)"
             >
-              <div class="text-md md:text-2xl font-bold leading-none tracking-tight">
+              <div class="text-sm font-bold leading-snug truncate">
                 已用：{{ formattedMemoryUsed.value }} {{ formattedMemoryUsed.unit }}
               </div>
-              <div class="text-[11px] text-muted-foreground leading-tight mt-1 truncate">
+              <div class="text-sm text-muted-foreground leading-snug truncate">
                 全部：{{ formattedMemoryTotal.value }} {{ formattedMemoryTotal.unit }}
               </div>
             </div>
@@ -258,10 +258,10 @@ onMounted(async () => {
               :key="`disk-${summaryTransitionKey}`" class="min-w-0"
               :style="getMetricSwitchStyle(1)"
             >
-              <div class="text-md md:text-2xl font-bold leading-none tracking-tight">
+              <div class="text-sm font-bold leading-snug truncate">
                 已用：{{ formattedDiskUsed.value }} {{ formattedDiskUsed.unit }}
               </div>
-              <div class="text-[11px] text-muted-foreground leading-tight mt-1 truncate">
+              <div class="text-sm text-muted-foreground leading-snug truncate">
                 全部：{{ formattedDiskTotal.value }} {{ formattedDiskTotal.unit }}
               </div>
             </div>
@@ -394,14 +394,14 @@ onMounted(async () => {
             >
               <Transition v-bind="metricSwitchTransitionProps">
                 <div
-                  :key="`traffic-${summaryTransitionKey}`" class="text-md md:text-2xl font-bold leading-none tracking-tight"
+                  :key="`traffic-${summaryTransitionKey}`" class="text-sm font-bold leading-snug truncate"
                   :style="getMetricSwitchStyle(3)"
                 >
                   已用：{{ totalTrafficTooltip.value }} {{ totalTrafficTooltip.unit }}
                 </div>
               </Transition>
             </DataTooltip>
-            <div class="text-[11px] text-muted-foreground leading-tight mt-1 truncate">
+            <div class="text-sm text-muted-foreground leading-snug truncate">
               全部：{{ formattedTrafficLimit.value }} {{ formattedTrafficLimit.unit }} · {{ unlimitedTrafficCount }} 台无限
             </div>
           </div>
