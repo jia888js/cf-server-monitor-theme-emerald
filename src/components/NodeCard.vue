@@ -14,7 +14,7 @@ import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, 
 import { lineMap, loadLineInfo } from '@/utils/lineInfo'
 import { formatOfflineTime, getCustomTags, getPriceTags, getRemainingTimeTagClass, getTrafficLevel, getTrafficUsed, getTrafficUsedPercentage, hasRegion, showTrafficProgress } from '@/utils/nodeHelper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
-import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
+import { getRegionByAlias, getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
 import satBorders from '../assets/borders.json'
 
 const props = defineProps<{ node: NodeData }>()
@@ -33,7 +33,8 @@ const satUrl = computed(() => {
 const countryName = computed(() => {
   if (!hasRegion(props.node.region))
     return ''
-  return getRegionDisplayName(props.node.region)
+  const code = getRegionCode(props.node.region)
+  return getRegionByAlias(code)?.zh || code
 })
 // 本国国境线（SVG 路径，512x512 全景图坐标）
 const borderPath = computed(() => {
