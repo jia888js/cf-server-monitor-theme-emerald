@@ -17,11 +17,18 @@ import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
 
 const props = defineProps<{ node: NodeData }>()
-
 const emit = defineEmits<{
   click: []
   pingClick: [node: NodeData]
 }>()
+// 各地区卫星影像（打包进主题，CSP 安全）
+const satImages = import.meta.glob<string>('../assets/sat/*.jpg', { eager: true, query: '?url', import: 'default' })
+const satUrl = computed(() => {
+  if (!hasRegion(props.node.region))
+    return ''
+  const code = getRegionCode(props.node.region).toLowerCase()
+  return satImages[`../assets/sat/${code}.jpg`] || ''
+})
 
 // 三网线路数据（中转 Worker 公开接口），加载一次全站共用
 loadLineInfo()
@@ -97,7 +104,10 @@ function openPingDialog() {
     <!-- ═══ 轨道视窗 ═══ -->
     <div class="viewport">
       <div class="vp-stars" />
-      <div class="vp-planet" :class="props.node.online ? 'vp-online' : 'vp-offline'" />
+      <div
+        class="vp-planet" :class="props.node.online ? 'vp-online' : 'vp-offline'"
+        :style="satUrl ? { backgroundImage: `url(${satUrl})` } : undefined"
+      />
       <div class="vp-top">
         <div class="vp-desig">
           {{ props.node.name }}
@@ -352,18 +362,37 @@ function openPingDialog() {
   bottom: -118px;
   transform: translateX(-50%);
   border-radius: 9999px;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+/* 球体明暗 + 氛围罩（盖在卫星图/渐变之上） */
+.vp-planet::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
 }
 .vp-online {
   background: radial-gradient(circle at 50% 28%, #8fd8ff 0%, #38bdf8 30%, #1e40af 58%, #060d28 82%);
-  box-shadow:
-    0 -6px 42px 8px rgba(56, 189, 248, 0.4),
-    inset 0 -18px 42px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 -6px 42px 8px rgba(56, 189, 248, 0.4);
+}
+.vp-online::before {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(186, 230, 253, 0.28), transparent 46%),
+    linear-gradient(180deg, transparent 52%, rgba(2, 6, 23, 0.6) 100%);
+  box-shadow: inset 0 -16px 36px rgba(0, 0, 0, 0.5);
 }
 .vp-offline {
   background: radial-gradient(circle at 50% 28%, #fca5a5 0%, #ef4444 32%, #7f1d1d 62%, #1c0606 85%);
-  box-shadow:
-    0 -6px 42px 8px rgba(248, 113, 113, 0.35),
-    inset 0 -18px 42px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 -6px 42px 8px rgba(248, 113, 113, 0.3);
+}
+.vp-offline::before {
+  background:
+    linear-gradient(180deg, rgba(127, 29, 29, 0.28), rgba(69, 10, 10, 0.62)),
+    radial-gradient(circle at 50% 18%, rgba(252, 165, 165, 0.12), transparent 46%);
+  box-shadow: inset 0 -16px 36px rgba(0, 0, 0, 0.5);
 }
 .vp-top {
   position: absolute;
