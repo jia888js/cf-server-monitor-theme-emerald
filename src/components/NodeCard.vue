@@ -36,11 +36,16 @@ const countryName = computed(() => {
   const code = getRegionCode(props.node.region)
   return getRegionByAlias(code)?.zh || code
 })
-// 本国国境线（SVG 路径，512x512 全景图坐标）
-const borderPath = computed(() => {
+// 本国国境线（borders.json：{w,h} 为全景图尺寸，d 为 SVG 路径）
+interface BorderInfo { w: number, h: number, d: string }
+const borderInfo = computed<BorderInfo | null>(() => {
   if (!hasRegion(props.node.region))
-    return ''
-  return (satBorders as Record<string, string>)[getRegionCode(props.node.region).toLowerCase()] || ''
+    return null
+  const m = (satBorders as unknown as Record<string, unknown>)[getRegionCode(props.node.region).toLowerCase()]
+  if (!m || typeof m !== 'object')
+    return null
+  const b = m as BorderInfo
+  return b.d ? b : null
 })
 
 // 三网线路数据（中转 Worker 公开接口），加载一次全站共用
@@ -118,8 +123,8 @@ function openPingDialog() {
     <div class="viewport" :class="!props.node.online && 'is-off'">
       <div class="vp-map" :style="satUrl ? { backgroundImage: `url(${satUrl})` } : undefined" />
       <div class="vp-shade" />
-      <svg v-if="borderPath" class="vp-border" viewBox="0 0 512 512" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <path :d="borderPath" />
+      <svg v-if="borderInfo" class="vp-border" :viewBox="`0 0 ${borderInfo.w} ${borderInfo.h}`" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <path :d="borderInfo.d" />
       </svg>
       <div class="vp-top">
         <div class="min-w-0">
