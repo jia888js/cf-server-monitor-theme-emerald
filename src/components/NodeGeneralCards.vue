@@ -215,7 +215,7 @@ onMounted(async () => {
       >
         <div class="flex h-full flex-col justify-between gap-1">
           <div class="flex items-start justify-between">
-            <span class="text-xs font-medium tracking-wider text-muted-foreground">内存用量</span>
+            <span class="text-xs font-medium tracking-wider text-muted-foreground">内存</span>
             <Icon
               icon="tabler:cash" :width="20" :height="20"
               class="text-slate-500/20 group-hover:text-slate-500 transition-colors"
@@ -223,15 +223,15 @@ onMounted(async () => {
           </div>
           <Transition v-bind="metricSwitchTransitionProps">
             <div
-              :key="`memory-${summaryTransitionKey}`" class="flex items-baseline gap-1 min-w-0"
+              :key="`memory-${summaryTransitionKey}`" class="min-w-0"
               :style="getMetricSwitchStyle(0)"
             >
-              <span class="text-md md:text-2xl font-bold leading-none tracking-tight">
-                {{ formattedMemoryUsed.value }}
-              </span>
-              <span class="text-[11px] md:text-xs font-medium text-muted-foreground truncate">
-                {{ formattedMemoryUsed.unit }} / {{ formattedMemoryTotal.value }} {{ formattedMemoryTotal.unit }}
-              </span>
+              <div class="text-md md:text-2xl font-bold leading-none tracking-tight">
+                已用：{{ formattedMemoryUsed.value }} {{ formattedMemoryUsed.unit }}
+              </div>
+              <div class="text-[11px] text-muted-foreground leading-tight mt-1 truncate">
+                全部：{{ formattedMemoryTotal.value }} {{ formattedMemoryTotal.unit }}
+              </div>
             </div>
           </Transition>
         </div>
@@ -247,7 +247,7 @@ onMounted(async () => {
       >
         <div class="flex h-full flex-col justify-between gap-1">
           <div class="flex items-start justify-between">
-            <span class="text-xs font-medium tracking-wider text-muted-foreground">硬盘用量</span>
+            <span class="text-xs font-medium tracking-wider text-muted-foreground">硬盘</span>
             <Icon
               icon="tabler:server-2" :width="20" :height="20"
               class="text-slate-500/20 group-hover:text-slate-500 transition-colors"
@@ -255,14 +255,15 @@ onMounted(async () => {
           </div>
           <Transition v-bind="metricSwitchTransitionProps">
             <div
-              :key="`disk-${summaryTransitionKey}`" class="flex items-baseline gap-1 min-w-0"
+              :key="`disk-${summaryTransitionKey}`" class="min-w-0"
               :style="getMetricSwitchStyle(1)"
             >
-              <span class="text-md md:text-2xl font-bold leading-none tracking-tight">{{ formattedDiskUsed.value
-              }}</span>
-              <span class="text-[11px] md:text-xs font-medium text-muted-foreground truncate">
-                {{ formattedDiskUsed.unit }} / {{ formattedDiskTotal.value }} {{ formattedDiskTotal.unit }}
-              </span>
+              <div class="text-md md:text-2xl font-bold leading-none tracking-tight">
+                已用：{{ formattedDiskUsed.value }} {{ formattedDiskUsed.unit }}
+              </div>
+              <div class="text-[11px] text-muted-foreground leading-tight mt-1 truncate">
+                全部：{{ formattedDiskTotal.value }} {{ formattedDiskTotal.unit }}
+              </div>
             </div>
           </Transition>
         </div>
@@ -379,7 +380,7 @@ onMounted(async () => {
       >
         <div class="flex h-full flex-col justify-between gap-1">
           <div class="flex items-start justify-between">
-            <span class="text-xs font-medium tracking-wider text-muted-foreground">累计流量</span>
+            <span class="text-xs font-medium tracking-wider text-muted-foreground">流量</span>
             <Icon
               icon="tabler:download" :width="20" :height="20"
               class="text-slate-500/20 group-hover:text-slate-500 transition-colors"
@@ -389,24 +390,19 @@ onMounted(async () => {
             <DataTooltip
               as="span" placement="top"
               :content="`↑ ${formattedTrafficUp.value} ${formattedTrafficUp.unit}\n↓ ${formattedTrafficDown.value} ${formattedTrafficDown.unit}`"
-              class="min-w-0" content-class="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"
+              class="min-w-0 block" content-class="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"
             >
               <Transition v-bind="metricSwitchTransitionProps">
                 <div
-                  :key="`traffic-${summaryTransitionKey}`" class="flex items-baseline gap-1"
+                  :key="`traffic-${summaryTransitionKey}`" class="text-md md:text-2xl font-bold leading-none tracking-tight"
                   :style="getMetricSwitchStyle(3)"
                 >
-                  <span class="inline-block text-md md:text-2xl font-bold leading-none tracking-tight">
-                    {{ totalTrafficTooltip.value }}
-                  </span>
-                  <span class="inline-block text-[11px] md:text-xs font-medium text-muted-foreground">
-                    {{ totalTrafficTooltip.unit }}
-                  </span>
+                  已用：{{ totalTrafficTooltip.value }} {{ totalTrafficTooltip.unit }}
                 </div>
               </Transition>
             </DataTooltip>
-            <div class="text-[11px] text-muted-foreground leading-tight mt-0.5">
-              总 {{ formattedTrafficLimit.value }} {{ formattedTrafficLimit.unit }} · {{ unlimitedTrafficCount }} 台无限
+            <div class="text-[11px] text-muted-foreground leading-tight mt-1 truncate">
+              全部：{{ formattedTrafficLimit.value }} {{ formattedTrafficLimit.unit }} · {{ unlimitedTrafficCount }} 台无限
             </div>
           </div>
         </div>
