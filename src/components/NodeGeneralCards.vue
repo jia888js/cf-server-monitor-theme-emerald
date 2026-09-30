@@ -226,10 +226,10 @@ onMounted(async () => {
               :key="`memory-${summaryTransitionKey}`" class="min-w-0"
               :style="getMetricSwitchStyle(0)"
             >
-              <div class="text-[13px] leading-snug whitespace-nowrap">
+              <div class="text-[13px] font-bold leading-snug whitespace-nowrap">
                 已用：{{ formattedMemoryUsed.value }} {{ formattedMemoryUsed.unit }}
               </div>
-              <div class="text-[13px] text-muted-foreground leading-snug whitespace-nowrap">
+              <div class="text-[13px] font-bold text-muted-foreground leading-snug whitespace-nowrap">
                 全部：{{ formattedMemoryTotal.value }} {{ formattedMemoryTotal.unit }}
               </div>
             </div>
@@ -258,10 +258,10 @@ onMounted(async () => {
               :key="`disk-${summaryTransitionKey}`" class="min-w-0"
               :style="getMetricSwitchStyle(1)"
             >
-              <div class="text-[13px] leading-snug whitespace-nowrap">
+              <div class="text-[13px] font-bold leading-snug whitespace-nowrap">
                 已用：{{ formattedDiskUsed.value }} {{ formattedDiskUsed.unit }}
               </div>
-              <div class="text-[13px] text-muted-foreground leading-snug whitespace-nowrap">
+              <div class="text-[13px] font-bold text-muted-foreground leading-snug whitespace-nowrap">
                 全部：{{ formattedDiskTotal.value }} {{ formattedDiskTotal.unit }}
               </div>
             </div>
@@ -380,14 +380,11 @@ onMounted(async () => {
       >
         <div class="flex h-full flex-col justify-between gap-1">
           <div class="flex items-start justify-between">
-            <span class="text-xs font-medium tracking-wider text-muted-foreground">流量</span>
-            <div class="flex items-center gap-1.5">
-              <span v-if="unlimitedTrafficCount > 0" class="text-[10px] text-muted-foreground whitespace-nowrap">{{ unlimitedTrafficCount }}台无限</span>
-              <Icon
-                icon="tabler:download" :width="20" :height="20"
-                class="text-slate-500/20 group-hover:text-slate-500 transition-colors"
-              />
-            </div>
+            <span class="text-xs font-medium tracking-wider text-muted-foreground whitespace-nowrap">流量</span>
+            <Icon
+              icon="tabler:download" :width="20" :height="20"
+              class="text-slate-500/20 group-hover:text-slate-500 transition-colors shrink-0"
+            />
           </div>
           <div class="min-w-0">
             <DataTooltip
@@ -397,15 +394,18 @@ onMounted(async () => {
             >
               <Transition v-bind="metricSwitchTransitionProps">
                 <div
-                  :key="`traffic-${summaryTransitionKey}`" class="text-[13px] leading-snug whitespace-nowrap"
+                  :key="`traffic-${summaryTransitionKey}`" class="text-[13px] font-bold leading-snug whitespace-nowrap"
                   :style="getMetricSwitchStyle(3)"
                 >
                   已用：{{ totalTrafficTooltip.value }} {{ totalTrafficTooltip.unit }}
                 </div>
               </Transition>
             </DataTooltip>
-            <div class="text-[13px] text-muted-foreground leading-snug whitespace-nowrap">
+            <div class="text-[13px] font-bold text-muted-foreground leading-snug whitespace-nowrap">
               全部：{{ formattedTrafficLimit.value }} {{ formattedTrafficLimit.unit }}
+            </div>
+            <div class="text-[13px] font-bold text-muted-foreground leading-snug whitespace-nowrap">
+              无限：{{ unlimitedTrafficCount }}台
             </div>
           </div>
         </div>
